@@ -61,7 +61,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'settings.privacy': 'Privacy & Anonymity',
     'settings.crisis': 'Crisis resources',
     'settings.about': 'About & Credits',
-    'settings.signout': 'Sign out',
+    'settings.signout': 'Log out',
     'lightai.intro': 'Lumi is a gentle AI companion here to help with whatever you need. Going through an emotional moment or struggling with studies? Just tell Lumi.',
     'lightai.start': 'Start chatting',
     'challenges.leaderboard': 'Leaderboard',
@@ -110,7 +110,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'community.board': 'বোর্ড',
     'community.map': 'মানচিত্র',
     'profile.settings': 'সেটিংস',
-    'settings.signout': 'সাইন আউট',
+    'settings.signout': 'লগ আউট',
   },
   ko: {
     'app.name': '라이트하우스',

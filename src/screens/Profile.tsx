@@ -25,7 +25,7 @@ const badgeIcons: Record<string, React.ElementType> = {
 };
 
 export default function Profile() {
-  const { user, darkMode, toggleDarkMode, setLanguage, language } = useStore();
+  const { user, darkMode, toggleDarkMode, setLanguage, language, logOut } = useStore();
   const [showSettings, setShowSettings] = useState(false);
   const [showTierUp, setShowTierUp] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
@@ -34,6 +34,11 @@ export default function Profile() {
   const tierProgress = ((user.currentScore - tier.min) / (tier.max - tier.min)) * 100;
   const earnedBadges = badges.filter((b) => b.earned);
   const lockedBadges = badges.filter((b) => !b.earned);
+
+  const handleLogOut = () => {
+    setShowSettings(false);
+    logOut();
+  };
 
   return (
     <div className="screen-scroll">
@@ -248,6 +253,9 @@ export default function Profile() {
         title={t('profile.settings')}
       >
         <div className="space-y-1">
+          <div className="pb-3 mb-2 border-b border-ink-100 dark:border-night-700">
+            <SettingsRow icon={LogOut} label={t('settings.signout')} onClick={handleLogOut} danger />
+          </div>
           <SettingsRow
             icon={Languages}
             label={t('settings.language')}
@@ -263,9 +271,6 @@ export default function Profile() {
           <SettingsRow icon={Shield} label={t('settings.privacy')} />
           <SettingsRow icon={LifeBuoy} label={t('settings.crisis')} />
           <SettingsRow icon={Info} label={t('settings.about')} />
-          <div className="pt-3 mt-3 border-t border-ink-100 dark:border-night-700">
-            <SettingsRow icon={LogOut} label={t('settings.signout')} danger />
-          </div>
         </div>
 
         {/* Language picker inline */}

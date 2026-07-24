@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, PenLine, Globe, Cake, Palette, Flame } from 'lucide-react';
+import { Sparkles, ArrowRight, PenLine, Globe, Cake, Palette } from 'lucide-react';
 import { useStore } from '../lib/store';
+import Lumi from '../components/Lumi';
 
 const themes = [
-  { id: 'basic', label: 'Basic' },
-  { id: 'dark', label: 'Dark' },
-  { id: 'random', label: 'Random' },
+  { id: 'basic', label: 'Basic', swatch: '#FFB27A' },
+  { id: 'uv', label: 'UV', swatch: 'linear-gradient(135deg, #7C3AED, #4C1D95)' },
+  { id: 'random', label: 'Random', swatch: 'conic-gradient(from 180deg, #FF4D6A, #FFB547, #34D399, #3B82F6, #A78BFA, #FF4D6A)' },
 ] as const;
 type ThemeId = typeof themes[number]['id'];
 
@@ -23,24 +24,30 @@ const languages = [
 ];
 
 export default function Onboarding() {
-  const { setOnboarded, setLanguage, toggleDarkMode, darkMode } = useStore();
+  const { setOnboarded, setLanguage, toggleDarkMode, darkMode, setUserName } = useStore();
   const [selectedLang, setSelectedLang] = useState('en');
   const [ageRange, setAgeRange] = useState('');
   const [country, setCountry] = useState('');
   const [name, setName] = useState('');
   const [theme, setTheme] = useState<ThemeId>('basic');
 
-  const canContinue = ageRange && country;
+  const missingFields = [
+    !name.trim() && 'nickname',
+    !ageRange && 'age',
+    !country && 'country',
+  ].filter(Boolean) as string[];
+  const canContinue = missingFields.length === 0;
 
   const handleSelectTheme = (id: ThemeId) => {
     setTheme(id);
-    const wantsDark = id === 'dark' || (id === 'random' && Math.random() < 0.5);
+    const wantsDark = id === 'uv' || (id === 'random' && Math.random() < 0.5);
     if (wantsDark !== darkMode) toggleDarkMode();
   };
 
   const handleFinish = () => {
     if (!canContinue) return;
     setLanguage(selectedLang);
+    setUserName(name.trim());
     setOnboarded();
   };
 
@@ -180,14 +187,15 @@ export default function Onboarding() {
             </Field>
 
             {/* Nickname */}
-            <Field icon={PenLine} label="Nickname (optional)">
+            <Field icon={PenLine} label="Nickname" required>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Stays private on your device"
+                placeholder="What should we call you?"
                 className="w-full py-3 px-4 rounded-capsule glass text-body text-ink-900 placeholder:text-ink-300 focus-ring"
               />
+              <p className="mt-1.5 text-[11px] text-ink-600">Stays private on your device</p>
             </Field>
 
             {/* Theme */}
@@ -205,9 +213,10 @@ export default function Onboarding() {
                     onClick={() => handleSelectTheme(th.id)}
                   >
                     <span
-                      className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-                        theme === th.id ? 'border-white' : 'border-ink-300'
+                      className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${
+                        theme === th.id ? 'border-2 border-white' : ''
                       }`}
+                      style={theme === th.id ? undefined : { background: th.swatch }}
                     >
                       {theme === th.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </span>
@@ -221,13 +230,10 @@ export default function Onboarding() {
 
         {/* Lumi mascot + reassurance bubble */}
         <div className="px-6 mt-6 flex items-end gap-3">
-          <motion.div
-            className="w-16 h-16 rounded-full hero-glow shadow-medium flex items-center justify-center shrink-0"
-            animate={{ y: [0, -3, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Flame className="text-white" size={28} strokeWidth={2} fill="white" fillOpacity={0.25} />
-          </motion.div>
+          <div className="relative shrink-0">
+            <div className="absolute inset-0 rounded-full hero-glow blur-lg opacity-50 scale-90" />
+            <Lumi pose={canContinue ? 'cheering' : 'thinking'} size={68} className="relative" />
+          </div>
           <AnimatePresence mode="wait">
             {canContinue ? (
               <motion.div
@@ -281,7 +287,7 @@ export default function Onboarding() {
           whileTap={canContinue ? { scale: 0.97 } : undefined}
           onClick={handleFinish}
         >
-          {canContinue ? "Let's go" : 'Fill in age & country'}
+          {canContinue ? "Let's go" : `Fill in ${missingFields.join(', ')}`}
           {canContinue && <ArrowRight size={20} strokeWidth={2.5} />}
         </motion.button>
       </div>

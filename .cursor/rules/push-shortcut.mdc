@@ -1,0 +1,19 @@
+---
+description: Shortcut command "PUSH!" to auto-commit and push changes without asking for confirmation
+alwaysApply: true
+---
+
+# "PUSH!" Shortcut
+
+When the user sends a message consisting of (or centrally containing) the standalone word `PUSH!`, treat it as their explicit, standing authorization to immediately, without asking for confirmation first:
+
+1. Run `git status` / `git diff` to see what changed.
+2. Stage all outstanding changes (`git add -A`).
+3. Create a commit with a concise message summarizing the "why" of the changes, following this repo's existing commit message style, passed via a HEREDOC.
+4. Push the current branch to its remote — `git push`, or `git push -u origin HEAD` if it has no upstream yet.
+
+Notes:
+
+- If the working tree has no changes to commit, just report that it's clean instead of pushing.
+- Still follow all other rules in the git safety protocol: never force-push, never skip hooks, never touch git config, never push to main with `--force`, and only use `--amend` when its normal conditions are met.
+- Do not wait for further confirmation beyond the "PUSH!" message itself — that phrase is the user's explicit go-ahead to commit and push in one step.

@@ -27,6 +27,8 @@ interface AppState {
   dismissNudge: () => void;
   dismissEasterEgg: () => void;
   addBonusPoints: (points: number) => void;
+  setUserName: (name: string) => void;
+  logOut: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -81,6 +83,15 @@ export const useStore = create<AppState>()(
             currentScore: Math.min(100, s.user.currentScore + points),
           },
         })),
+      setUserName: (name) =>
+        set((s) => ({
+          user: { ...s.user, name },
+        })),
+      logOut: () =>
+        set({
+          hasOnboarded: false,
+          activeTab: 0,
+        }),
     }),
     {
       name: 'lighthouse-storage',
