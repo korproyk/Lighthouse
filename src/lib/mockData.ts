@@ -58,6 +58,8 @@ function daysAgo(n: number): string {
   return d.toISOString().split('T')[0];
 }
 
+export type TierId = 'spark' | 'flame' | 'beacon' | 'keeper';
+
 export const userProfile = {
   name: 'Aranya',
   avatar: 'classic',
@@ -66,7 +68,7 @@ export const userProfile = {
   ageRange: '15-16',
   language: 'en',
   memberSince: '2026-03-15',
-  tier: 'flame' as const,
+  tier: 'flame' as TierId,
   tierProgress: 68,
   totalChallenges: 47,
   currentScore: 73,

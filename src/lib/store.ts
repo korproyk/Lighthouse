@@ -4,6 +4,17 @@ import { userProfile, checkIns, challenges, badges } from './mockData';
 import type { CheckIn, Challenge, Badge } from './mockData';
 import { setLanguage } from './i18n';
 
+export interface Account {
+  passwordHash: string;
+  user: typeof userProfile;
+  checkIns: CheckIn[];
+  challenges: Challenge[];
+  badges: Badge[];
+  darkMode: boolean;
+  uvMode: boolean;
+  language: string;
+}
+
 interface AppState {
   hasOnboarded: boolean;
   darkMode: boolean;
@@ -18,6 +29,7 @@ interface AppState {
   lightBotHasNudge: boolean;
   sessionStartTime: number;
   showEasterEgg: boolean;
+  accounts: Record<string, Account>;
 
   setOnboarded: () => void;
   toggleDarkMode: () => void;
@@ -31,11 +43,24 @@ interface AppState {
   addBonusPoints: (points: number) => void;
   setUserName: (name: string) => void;
   logOut: () => void;
+  hasAccount: (nickname: string) => boolean;
+  createAccount: (
+    nickname: string,
+    passwordHash: string,
+    details?: { country?: string; countryFlag?: string; ageRange?: string }
+  ) => void;
+  loginAccount: (nickname: string) => boolean;
+  verifyAccountPassword: (nickname: string, passwordHash: string) => boolean;
+  syncAccount: (nickname: string) => void;
+}
+
+function accountKey(nickname: string): string {
+  return nickname.trim().toLowerCase();
 }
 
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       hasOnboarded: false,
       darkMode: false,
       uvMode: false,
@@ -49,6 +74,7 @@ export const useStore = create<AppState>()(
       lightBotHasNudge: true,
       sessionStartTime: Date.now(),
       showEasterEgg: false,
+      accounts: {},
 
       setOnboarded: () => set({ hasOnboarded: true }),
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
@@ -91,11 +117,109 @@ export const useStore = create<AppState>()(
         set((s) => ({
           user: { ...s.user, name },
         })),
-      logOut: () =>
+      logOut: () => {
+        const s = get();
+        get().syncAccount(s.user.name);
         set({
           hasOnboarded: false,
           activeTab: 0,
-        }),
+        });
+      },
+
+      // --- Local nickname + password accounts ---
+      // Each device can hold several nicknames side by side. A nickname's
+      // progress is only readable/overwritable by whoever knows its password,
+      // so logging out and picking an existing nickname can't silently clobber
+      // or peek at someone else's saved data.
+      hasAccount: (nickname) => Boolean(get().accounts[accountKey(nickname)]),
+      verifyAccountPassword: (nickname, passwordHash) => {
+        const account = get().accounts[accountKey(nickname)];
+        return !!account && account.passwordHash === passwordHash;
+      },
+      createAccount: (nickname, passwordHash, details) => {
+        const s = get();
+        const freshUser = {
+          ...userProfile,
+          name: nickname.trim(),
+          ...(details?.country ? { country: details.country } : {}),
+          ...(details?.countryFlag ? { countryFlag: details.countryFlag } : {}),
+          ...(details?.ageRange ? { ageRange: details.ageRange } : {}),
+          language: s.language,
+          tier: 'spark' as const,
+          tierProgress: 0,
+          currentScore: 0,
+          currentStreak: 0,
+          weeklyChange: 0,
+          totalChallenges: 0,
+          memberSince: new Date().toISOString().split('T')[0],
+        };
+        const freshCheckIns = s.checkIns.map((c) => ({
+          ...c,
+          mood: 0,
+          screenTime: 0,
+          sleep: 0,
+          socialBattery: 0,
+          score: 0,
+          completed: false,
+        }));
+        const freshChallenges = s.challenges.map((c) => ({ ...c, completed: false }));
+        const freshBadges = s.badges.map((b) => ({ ...b, earned: false, earnedDate: undefined }));
+
+        set({
+          accounts: {
+            ...s.accounts,
+            [accountKey(nickname)]: {
+              passwordHash,
+              user: freshUser,
+              checkIns: freshCheckIns,
+              challenges: freshChallenges,
+              badges: freshBadges,
+              darkMode: s.darkMode,
+              uvMode: s.uvMode,
+              language: s.language,
+            },
+          },
+          user: freshUser,
+          checkIns: freshCheckIns,
+          challenges: freshChallenges,
+          badges: freshBadges,
+        });
+      },
+      loginAccount: (nickname) => {
+        const account = get().accounts[accountKey(nickname)];
+        if (!account) return false;
+        setLanguage(account.language);
+        set({
+          user: account.user,
+          checkIns: account.checkIns,
+          challenges: account.challenges,
+          badges: account.badges,
+          darkMode: account.darkMode,
+          uvMode: account.uvMode,
+          language: account.language,
+        });
+        return true;
+      },
+      syncAccount: (nickname) => {
+        const s = get();
+        const key = accountKey(nickname);
+        if (!s.accounts[key]) return;
+        set({
+          accounts: {
+            ...s.accounts,
+            [key]: {
+              ...s.accounts[key],
+              user: s.user,
+              checkIns: s.checkIns,
+              challenges: s.challenges,
+              badges: s.badges,
+              darkMode: s.darkMode,
+              uvMode: s.uvMode,
+              language: s.language,
+            },
+          },
+        });
+      },
     }),
     {
       name: 'lighthouse-storage',
@@ -108,6 +232,7 @@ export const useStore = create<AppState>()(
         checkIns: state.checkIns,
         challenges: state.challenges,
         badges: state.badges,
+        accounts: state.accounts,
       }),
     }
   )

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, PenLine, Globe, Cake, Palette } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowLeft, PenLine, Globe, Cake, Palette, Eye, EyeOff, Lock, Loader2 } from 'lucide-react';
 import { useStore } from '../lib/store';
-import Lumi from '../components/Lumi';
+import { hashPassword } from '../lib/hash';
+import Spark from '../components/Spark';
 
 const themes = [
   { id: 'basic', label: 'Basic', swatch: '#FFB27A' },
@@ -24,12 +25,21 @@ const languages = [
 ];
 
 export default function Onboarding() {
-  const { setOnboarded, setLanguage, toggleDarkMode, darkMode, toggleUvMode, uvMode, setUserName } = useStore();
+  const { setOnboarded, setLanguage, toggleDarkMode, darkMode, toggleUvMode, uvMode, hasAccount, createAccount, loginAccount, verifyAccountPassword } = useStore();
+  const [step, setStep] = useState<'details' | 'password'>('details');
+  const [accountMode, setAccountMode] = useState<'create' | 'login'>('create');
+
   const [selectedLang, setSelectedLang] = useState('en');
   const [ageRange, setAgeRange] = useState('');
   const [country, setCountry] = useState('');
   const [name, setName] = useState('');
   const [theme, setTheme] = useState<ThemeId>('basic');
+
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [checking, setChecking] = useState(false);
 
   const missingFields = [
     !name.trim() && 'nickname',
@@ -45,11 +55,58 @@ export default function Onboarding() {
     if (wantsUv !== uvMode) toggleUvMode();
   };
 
-  const handleFinish = () => {
+  const handleContinueFromDetails = () => {
     if (!canContinue) return;
-    setLanguage(selectedLang);
-    setUserName(name.trim());
-    setOnboarded();
+    setPasswordError('');
+    setPassword('');
+    setConfirmPassword('');
+    setAccountMode(hasAccount(name) ? 'login' : 'create');
+    setStep('password');
+  };
+
+  const handleBackToDetails = () => {
+    setStep('details');
+    setPasswordError('');
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (checking) return;
+
+    if (accountMode === 'create') {
+      if (password.length < 4) {
+        setPasswordError('Use at least 4 characters');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setPasswordError("Passwords don't match");
+        return;
+      }
+      setChecking(true);
+      const hash = await hashPassword(password);
+      // Apply the chosen language first so the fresh account snapshot captures it.
+      setLanguage(selectedLang);
+      const countryInfo = countries.find((c) => c.code === country);
+      createAccount(name, hash, { country, countryFlag: countryInfo?.flag, ageRange });
+      setOnboarded();
+      return;
+    }
+
+    if (!password) {
+      setPasswordError('Enter your password');
+      return;
+    }
+    setChecking(true);
+    const hash = await hashPassword(password);
+    const ok = verifyAccountPassword(name, hash);
+    if (ok) {
+      // Restore this nickname's own saved language/theme/progress rather than
+      // whatever was clicked on the details step for this visit.
+      loginAccount(name);
+      setOnboarded();
+    } else {
+      setChecking(false);
+      setPasswordError('Incorrect password. Try again.');
+    }
   };
 
   return (
@@ -96,202 +153,374 @@ export default function Onboarding() {
         </div>
       </div>
 
-      {/* Scroll content */}
-      <div className="relative screen-scroll" style={{ paddingBottom: 140, zIndex: 2 }}>
-        <div className="px-6 pt-6">
-          <h1 className="font-display font-bold text-display-xl text-ink-900 tracking-tight" style={{ lineHeight: 1.05 }}>
-            Let's get you{' '}
-            <span className="text-gradient-ember">set up</span>
-          </h1>
-          <p className="mt-2 text-body text-ink-600 leading-relaxed">
-            Just the basics — your answers stay private on this device.
-          </p>
-        </div>
-
-        {/* Glass form card */}
-        <div className="px-6 mt-6">
+      <AnimatePresence mode="wait">
+        {step === 'details' ? (
           <motion.div
-            className="relative overflow-hidden rounded-hero glass-strong p-5 space-y-6"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            key="details"
+            className="flex-1 min-h-0 flex flex-col relative"
+            initial={{ opacity: 0, x: 0 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -16 }}
+            transition={{ duration: 0.2 }}
           >
-            <div
-              className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
-              style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(28px)' }}
-            />
-            <div
-              className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full pointer-events-none"
-              style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.3), transparent 70%)', filter: 'blur(28px)' }}
-            />
-
-            {/* Language */}
-            <Field icon={Globe} label="Language">
-              <div className="flex gap-2">
-                {languages.map((lang) => (
-                  <motion.button
-                    key={lang.code}
-                    className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
-                      selectedLang === lang.code
-                        ? 'hero-glow text-white shadow-soft'
-                        : 'glass text-ink-700'
-                    }`}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setSelectedLang(lang.code)}
-                  >
-                    <span>{lang.flag}</span>
-                    <span>{lang.name}</span>
-                  </motion.button>
-                ))}
+            {/* Scroll content */}
+            <div className="relative screen-scroll" style={{ paddingBottom: 140, zIndex: 2 }}>
+              <div className="px-6 pt-6">
+                <h1 className="font-display font-bold text-display-xl text-ink-900 tracking-tight" style={{ lineHeight: 1.05 }}>
+                  Let's get you{' '}
+                  <span className="text-gradient-ember">set up</span>
+                </h1>
+                <p className="mt-2 text-body text-ink-600 leading-relaxed">
+                  Just the basics — your answers stay private on this device.
+                </p>
               </div>
-            </Field>
 
-            {/* Age */}
-            <Field icon={Cake} label="Age range" required>
-              <div className="flex flex-wrap gap-2">
-                {ageRanges.map((range) => (
-                  <motion.button
-                    key={range}
-                    className={`py-2.5 px-3.5 rounded-capsule font-display font-bold text-caption ${
-                      ageRange === range
-                        ? 'hero-glow text-white shadow-soft'
-                        : 'glass text-ink-700'
-                    }`}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setAgeRange(range)}
-                  >
-                    {range}
-                  </motion.button>
-                ))}
+              {/* Glass form card */}
+              <div className="px-6 mt-6">
+                <motion.div
+                  className="relative overflow-hidden rounded-hero glass-strong p-5 space-y-6"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div
+                    className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(28px)' }}
+                  />
+                  <div
+                    className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.3), transparent 70%)', filter: 'blur(28px)' }}
+                  />
+
+                  {/* Language */}
+                  <Field icon={Globe} label="Language">
+                    <div className="flex gap-2">
+                      {languages.map((lang) => (
+                        <motion.button
+                          key={lang.code}
+                          className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
+                            selectedLang === lang.code
+                              ? 'hero-glow text-white shadow-soft'
+                              : 'glass text-ink-700'
+                          }`}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => setSelectedLang(lang.code)}
+                        >
+                          <span>{lang.flag}</span>
+                          <span>{lang.name}</span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </Field>
+
+                  {/* Age */}
+                  <Field icon={Cake} label="Age range" required>
+                    <div className="flex flex-wrap gap-2">
+                      {ageRanges.map((range) => (
+                        <motion.button
+                          key={range}
+                          className={`py-2.5 px-3.5 rounded-capsule font-display font-bold text-caption ${
+                            ageRange === range
+                              ? 'hero-glow text-white shadow-soft'
+                              : 'glass text-ink-700'
+                          }`}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => setAgeRange(range)}
+                        >
+                          {range}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </Field>
+
+                  {/* Country */}
+                  <Field icon={Globe} label="Country" required>
+                    <div className="flex gap-2 flex-wrap">
+                      {countries.map((c) => (
+                        <motion.button
+                          key={c.code}
+                          className={`flex items-center gap-2 py-2.5 px-3.5 rounded-capsule font-display font-bold text-caption ${
+                            country === c.code
+                              ? 'hero-glow text-white shadow-soft'
+                              : 'glass text-ink-700'
+                          }`}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => setCountry(c.code)}
+                        >
+                          <span>{c.flag}</span>
+                          {c.code}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </Field>
+
+                  {/* Nickname */}
+                  <Field icon={PenLine} label="Nickname" required>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="What should we call you?"
+                      className="w-full py-3 px-4 rounded-capsule glass text-body text-ink-900 placeholder:text-ink-300 focus-ring"
+                    />
+                    <p className="mt-1.5 text-[11px] text-ink-600">
+                      Stays private on your device — you'll set a password next
+                    </p>
+                  </Field>
+
+                  {/* Theme */}
+                  <Field icon={Palette} label="Theme">
+                    <div className="flex gap-2">
+                      {themes.map((th) => (
+                        <motion.button
+                          key={th.id}
+                          className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
+                            theme === th.id
+                              ? 'hero-glow text-white shadow-soft'
+                              : 'glass text-ink-700'
+                          }`}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => handleSelectTheme(th.id)}
+                        >
+                          <span
+                            className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${
+                              theme === th.id ? 'border-2 border-white' : ''
+                            }`}
+                            style={theme === th.id ? undefined : { background: th.swatch }}
+                          >
+                            {theme === th.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </span>
+                          <span>{th.label}</span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </Field>
+                </motion.div>
               </div>
-            </Field>
 
-            {/* Country */}
-            <Field icon={Globe} label="Country" required>
-              <div className="flex gap-2 flex-wrap">
-                {countries.map((c) => (
-                  <motion.button
-                    key={c.code}
-                    className={`flex items-center gap-2 py-2.5 px-3.5 rounded-capsule font-display font-bold text-caption ${
-                      country === c.code
-                        ? 'hero-glow text-white shadow-soft'
-                        : 'glass text-ink-700'
-                    }`}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setCountry(c.code)}
-                  >
-                    <span>{c.flag}</span>
-                    {c.code}
-                  </motion.button>
-                ))}
-              </div>
-            </Field>
-
-            {/* Nickname */}
-            <Field icon={PenLine} label="Nickname" required>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="What should we call you?"
-                className="w-full py-3 px-4 rounded-capsule glass text-body text-ink-900 placeholder:text-ink-300 focus-ring"
-              />
-              <p className="mt-1.5 text-[11px] text-ink-600">Stays private on your device</p>
-            </Field>
-
-            {/* Theme */}
-            <Field icon={Palette} label="Theme">
-              <div className="flex gap-2">
-                {themes.map((th) => (
-                  <motion.button
-                    key={th.id}
-                    className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
-                      theme === th.id
-                        ? 'hero-glow text-white shadow-soft'
-                        : 'glass text-ink-700'
-                    }`}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handleSelectTheme(th.id)}
-                  >
-                    <span
-                      className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${
-                        theme === th.id ? 'border-2 border-white' : ''
-                      }`}
-                      style={theme === th.id ? undefined : { background: th.swatch }}
+              {/* Spark mascot + reassurance bubble */}
+              <div className="px-6 mt-6 flex items-end gap-3">
+                <div className="relative shrink-0">
+                  <div className="absolute inset-0 rounded-full hero-glow blur-lg opacity-50 scale-90" />
+                  <Spark pose={canContinue ? 'cheering' : 'thinking'} size={68} className="relative" />
+                </div>
+                <AnimatePresence mode="wait">
+                  {canContinue ? (
+                    <motion.div
+                      key="ready"
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                      className="relative glass-strong rounded-card px-4 py-3 flex-1"
                     >
-                      {theme === th.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </span>
-                    <span>{th.label}</span>
-                  </motion.button>
-                ))}
+                      <p className="font-display font-bold text-caption text-ink-900">
+                        You're all set! {'\u{1F389}'}
+                      </p>
+                      <p className="text-[11px] text-ink-600 leading-relaxed mt-0.5">
+                        Your little spark is ready to grow. Healthy habits, brighter days.
+                      </p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="pending"
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                      className="relative glass rounded-card px-4 py-3 flex-1"
+                    >
+                      <p className="text-caption text-ink-600 leading-relaxed">
+                        A couple more taps and your little spark will be ready to grow.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </Field>
+
+              <p className="px-8 mt-5 text-[11px] text-ink-600 text-center leading-relaxed">
+                Nothing here is shared. You can change anything later from Settings.
+              </p>
+            </div>
+
+            {/* Sticky CTA */}
+            <div
+              className="absolute bottom-0 left-0 right-0 px-6 pb-8 pt-4"
+              style={{ paddingBottom: 'max(32px, env(safe-area-inset-bottom))', zIndex: 3 }}
+            >
+              <motion.button
+                className={`w-full py-4 rounded-capsule font-display font-bold text-title flex items-center justify-center gap-2 shadow-medium ${
+                  canContinue
+                    ? 'hero-glow text-white shine'
+                    : 'bg-ink-100 text-ink-300 pointer-events-none'
+                }`}
+                whileTap={canContinue ? { scale: 0.97 } : undefined}
+                onClick={handleContinueFromDetails}
+              >
+                {canContinue ? 'Continue' : `Fill in ${missingFields.join(', ')}`}
+                {canContinue && <ArrowRight size={20} strokeWidth={2.5} />}
+              </motion.button>
+            </div>
           </motion.div>
-        </div>
+        ) : (
+          <motion.div
+            key="password"
+            className="flex-1 min-h-0 flex flex-col relative"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 16 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="relative screen-scroll" style={{ paddingBottom: 140, zIndex: 2 }}>
+              <div className="px-6 pt-2">
+                <motion.button
+                  className="flex items-center gap-1.5 text-caption font-bold text-ink-600"
+                  whileTap={{ scale: 0.96 }}
+                  onClick={handleBackToDetails}
+                >
+                  <ArrowLeft size={15} strokeWidth={2.5} />
+                  Back
+                </motion.button>
+              </div>
 
-        {/* Lumi mascot + reassurance bubble */}
-        <div className="px-6 mt-6 flex items-end gap-3">
-          <div className="relative shrink-0">
-            <div className="absolute inset-0 rounded-full hero-glow blur-lg opacity-50 scale-90" />
-            <Lumi pose={canContinue ? 'cheering' : 'thinking'} size={68} className="relative" />
-          </div>
-          <AnimatePresence mode="wait">
-            {canContinue ? (
-              <motion.div
-                key="ready"
-                initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="relative glass-strong rounded-card px-4 py-3 flex-1"
+              <div className="px-6 pt-4">
+                <h1 className="font-display font-bold text-display-xl text-ink-900 tracking-tight" style={{ lineHeight: 1.05 }}>
+                  {accountMode === 'create' ? (
+                    <>
+                      Protect your spot,{' '}
+                      <span className="text-gradient-ember">{name.trim()}</span>
+                    </>
+                  ) : (
+                    <>
+                      Welcome back,{' '}
+                      <span className="text-gradient-ember">{name.trim()}</span>
+                    </>
+                  )}
+                </h1>
+                <p className="mt-2 text-body text-ink-600 leading-relaxed">
+                  {accountMode === 'create'
+                    ? "Set a password so nobody else can use this nickname or see your progress."
+                    : 'This nickname already has saved progress. Enter your password to pick up where you left off.'}
+                </p>
+              </div>
+
+              <div className="px-6 mt-6">
+                <motion.div
+                  className="relative overflow-hidden rounded-hero glass-strong p-5 space-y-4"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div
+                    className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(28px)' }}
+                  />
+
+                  <Field icon={Lock} label="Password" required>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setPasswordError('');
+                        }}
+                        placeholder={accountMode === 'create' ? 'Create a password' : 'Enter your password'}
+                        className="w-full py-3 pl-4 pr-12 rounded-capsule glass text-body text-ink-900 placeholder:text-ink-300 focus-ring"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && accountMode === 'login') handlePasswordSubmit();
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center text-ink-600 focus-ring"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                      </button>
+                    </div>
+                  </Field>
+
+                  {accountMode === 'create' && (
+                    <Field icon={Lock} label="Confirm password" required>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={confirmPassword}
+                          onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            setPasswordError('');
+                          }}
+                          placeholder="Type it again"
+                          className="w-full py-3 pl-4 pr-12 rounded-capsule glass text-body text-ink-900 placeholder:text-ink-300 focus-ring"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handlePasswordSubmit();
+                          }}
+                        />
+                      </div>
+                    </Field>
+                  )}
+
+                  <AnimatePresence>
+                    {passwordError && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className="text-caption font-semibold text-coral-500"
+                      >
+                        {passwordError}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </div>
+
+              {/* Spark mascot + reassurance bubble */}
+              <div className="px-6 mt-6 flex items-end gap-3">
+                <div className="relative shrink-0">
+                  <div className="absolute inset-0 rounded-full hero-glow blur-lg opacity-50 scale-90" />
+                  <Spark pose="idle" size={68} className="relative" />
+                </div>
+                <div className="relative glass rounded-card px-4 py-3 flex-1">
+                  <p className="text-caption text-ink-600 leading-relaxed">
+                    {accountMode === 'create'
+                      ? "We'll remember this on this device only — no email needed."
+                      : "Forgot it? Go back and pick a different nickname to start fresh."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Sticky CTA */}
+            <div
+              className="absolute bottom-0 left-0 right-0 px-6 pb-8 pt-4"
+              style={{ paddingBottom: 'max(32px, env(safe-area-inset-bottom))', zIndex: 3 }}
+            >
+              <motion.button
+                className="w-full py-4 rounded-capsule font-display font-bold text-title flex items-center justify-center gap-2 shadow-medium hero-glow text-white shine disabled:opacity-70"
+                whileTap={{ scale: 0.97 }}
+                onClick={handlePasswordSubmit}
+                disabled={checking}
               >
-                <p className="font-display font-bold text-caption text-ink-900">
-                  You're all set! {'\u{1F389}'}
-                </p>
-                <p className="text-[11px] text-ink-600 leading-relaxed mt-0.5">
-                  Your little spark is ready to grow. Healthy habits, brighter days.
-                </p>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="pending"
-                initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="relative glass rounded-card px-4 py-3 flex-1"
-              >
-                <p className="text-caption text-ink-600 leading-relaxed">
-                  A couple more taps and your little spark will be ready to grow.
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <p className="px-8 mt-5 text-[11px] text-ink-600 text-center leading-relaxed">
-          Nothing here is shared. You can change anything later from Settings.
-        </p>
-      </div>
-
-      {/* Sticky CTA */}
-      <div
-        className="absolute bottom-0 left-0 right-0 px-6 pb-8 pt-4"
-        style={{ paddingBottom: 'max(32px, env(safe-area-inset-bottom))', zIndex: 3 }}
-      >
-        <motion.button
-          className={`w-full py-4 rounded-capsule font-display font-bold text-title flex items-center justify-center gap-2 shadow-medium ${
-            canContinue
-              ? 'hero-glow text-white shine'
-              : 'bg-ink-100 text-ink-300 pointer-events-none'
-          }`}
-          whileTap={canContinue ? { scale: 0.97 } : undefined}
-          onClick={handleFinish}
-        >
-          {canContinue ? "Let's go" : `Fill in ${missingFields.join(', ')}`}
-          {canContinue && <ArrowRight size={20} strokeWidth={2.5} />}
-        </motion.button>
-      </div>
+                {checking ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    {accountMode === 'create' ? 'Creating…' : 'Checking…'}
+                  </>
+                ) : (
+                  <>
+                    {accountMode === 'create' ? 'Create account' : 'Log in'}
+                    <ArrowRight size={20} strokeWidth={2.5} />
+                  </>
+                )}
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
