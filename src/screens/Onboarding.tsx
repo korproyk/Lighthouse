@@ -1,19 +1,14 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight, User, Globe, Cake } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, ArrowRight, PenLine, Globe, Cake, Palette, Flame } from 'lucide-react';
 import { useStore } from '../lib/store';
 
-const avatars = ['classic', 'scholar', 'athlete', 'artist', 'dreamer', 'rebel', 'nature', 'cosmic'] as const;
-const avatarEmojis: Record<string, string> = {
-  classic: '\u{1F3EE}',
-  scholar: '\u{1F4DA}',
-  athlete: '\u{26BD}',
-  artist: '\u{1F3A8}',
-  dreamer: '\u{2601}\u{FE0F}',
-  rebel: '\u{26A1}',
-  nature: '\u{1F33F}',
-  cosmic: '\u{2B50}',
-};
+const themes = [
+  { id: 'basic', label: 'Basic' },
+  { id: 'dark', label: 'Dark' },
+  { id: 'random', label: 'Random' },
+] as const;
+type ThemeId = typeof themes[number]['id'];
 
 const ageRanges = ['5-7', '8-10', '11-12', '13-14', '15-16', '17-19', '20+'];
 const countries = [
@@ -28,14 +23,20 @@ const languages = [
 ];
 
 export default function Onboarding() {
-  const { setOnboarded, setLanguage } = useStore();
+  const { setOnboarded, setLanguage, toggleDarkMode, darkMode } = useStore();
   const [selectedLang, setSelectedLang] = useState('en');
   const [ageRange, setAgeRange] = useState('');
   const [country, setCountry] = useState('');
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState<typeof avatars[number]>('classic');
+  const [theme, setTheme] = useState<ThemeId>('basic');
 
   const canContinue = ageRange && country;
+
+  const handleSelectTheme = (id: ThemeId) => {
+    setTheme(id);
+    const wantsDark = id === 'dark' || (id === 'random' && Math.random() < 0.5);
+    if (wantsDark !== darkMode) toggleDarkMode();
+  };
 
   const handleFinish = () => {
     if (!canContinue) return;
@@ -178,8 +179,8 @@ export default function Onboarding() {
               </div>
             </Field>
 
-            {/* Name */}
-            <Field icon={User} label="Name (optional)">
+            {/* Nickname */}
+            <Field icon={PenLine} label="Nickname (optional)">
               <input
                 type="text"
                 value={name}
@@ -189,33 +190,76 @@ export default function Onboarding() {
               />
             </Field>
 
-            {/* Avatar */}
-            <Field icon={Sparkles} label="Pick an avatar">
-              <div className="grid grid-cols-4 gap-2.5">
-                {avatars.map((a) => (
+            {/* Theme */}
+            <Field icon={Palette} label="Theme">
+              <div className="flex gap-2">
+                {themes.map((th) => (
                   <motion.button
-                    key={a}
-                    className={`aspect-square rounded-card flex flex-col items-center justify-center gap-1 ${
-                      avatar === a
-                        ? 'hero-glow shadow-medium'
-                        : 'glass'
+                    key={th.id}
+                    className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
+                      theme === th.id
+                        ? 'hero-glow text-white shadow-soft'
+                        : 'glass text-ink-700'
                     }`}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setAvatar(a)}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleSelectTheme(th.id)}
                   >
-                    <span className="text-xl">{avatarEmojis[a]}</span>
                     <span
-                      className={`text-[9px] font-bold capitalize ${
-                        avatar === a ? 'text-white' : 'text-ink-600'
+                      className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                        theme === th.id ? 'border-white' : 'border-ink-300'
                       }`}
                     >
-                      {a}
+                      {theme === th.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </span>
+                    <span>{th.label}</span>
                   </motion.button>
                 ))}
               </div>
             </Field>
           </motion.div>
+        </div>
+
+        {/* Lumi mascot + reassurance bubble */}
+        <div className="px-6 mt-6 flex items-end gap-3">
+          <motion.div
+            className="w-16 h-16 rounded-full hero-glow shadow-medium flex items-center justify-center shrink-0"
+            animate={{ y: [0, -3, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Flame className="text-white" size={28} strokeWidth={2} fill="white" fillOpacity={0.25} />
+          </motion.div>
+          <AnimatePresence mode="wait">
+            {canContinue ? (
+              <motion.div
+                key="ready"
+                initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="relative glass-strong rounded-card px-4 py-3 flex-1"
+              >
+                <p className="font-display font-bold text-caption text-ink-900">
+                  You're all set! {'\u{1F389}'}
+                </p>
+                <p className="text-[11px] text-ink-600 leading-relaxed mt-0.5">
+                  Your little spark is ready to grow. Healthy habits, brighter days.
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="pending"
+                initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="relative glass rounded-card px-4 py-3 flex-1"
+              >
+                <p className="text-caption text-ink-600 leading-relaxed">
+                  A couple more taps and your little spark will be ready to grow.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <p className="px-8 mt-5 text-[11px] text-ink-600 text-center leading-relaxed">

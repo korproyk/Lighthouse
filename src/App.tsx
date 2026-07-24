@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from './lib/store';
 import { setLanguage } from './lib/i18n';
-import PasswordGate from './components/PasswordGate';
 import CapsuleNavbar from './components/CapsuleNavbar';
 import Splash from './screens/Splash';
 import Onboarding from './screens/Onboarding';
@@ -17,11 +16,8 @@ import ScoreHistory from './components/ScoreHistory';
 
 const screens = [Home, Challenges, null, Community, Profile];
 
-const GATE_KEY = 'lighthouse-access-granted';
-
 export default function App() {
   const { hasOnboarded, activeTab, darkMode, language } = useStore();
-  const [authenticated, setAuthenticated] = useState(() => sessionStorage.getItem(GATE_KEY) === 'true');
   const [showSplash, setShowSplash] = useState(true);
   const [lightBotOpen, setLightBotOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
@@ -60,17 +56,6 @@ export default function App() {
     }, 30000);
     return () => clearInterval(timer);
   }, [sessionStartTime, easterEggShown]);
-
-  if (!authenticated) {
-    return (
-      <PasswordGate
-        onSuccess={() => {
-          sessionStorage.setItem(GATE_KEY, 'true');
-          setAuthenticated(true);
-        }}
-      />
-    );
-  }
 
   if (showSplash) {
     return (
