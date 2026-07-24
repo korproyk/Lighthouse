@@ -7,6 +7,7 @@ import { setLanguage } from './i18n';
 interface AppState {
   hasOnboarded: boolean;
   darkMode: boolean;
+  uvMode: boolean;
   language: string;
   reducedMotion: boolean;
   user: typeof userProfile;
@@ -20,6 +21,7 @@ interface AppState {
 
   setOnboarded: () => void;
   toggleDarkMode: () => void;
+  toggleUvMode: () => void;
   setLanguage: (lang: string) => void;
   setActiveTab: (tab: number) => void;
   completeChallenge: (id: string) => void;
@@ -36,6 +38,7 @@ export const useStore = create<AppState>()(
     (set) => ({
       hasOnboarded: false,
       darkMode: false,
+      uvMode: false,
       language: 'en',
       reducedMotion: false,
       user: userProfile,
@@ -49,6 +52,7 @@ export const useStore = create<AppState>()(
 
       setOnboarded: () => set({ hasOnboarded: true }),
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
+      toggleUvMode: () => set((s) => ({ uvMode: !s.uvMode })),
       setLanguage: (lang) => {
         setLanguage(lang);
         set({ language: lang });
@@ -98,6 +102,7 @@ export const useStore = create<AppState>()(
       partialize: (state) => ({
         hasOnboarded: state.hasOnboarded,
         darkMode: state.darkMode,
+        uvMode: state.uvMode,
         language: state.language,
         user: state.user,
         checkIns: state.checkIns,

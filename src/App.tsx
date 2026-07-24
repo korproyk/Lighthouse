@@ -17,7 +17,7 @@ import ScoreHistory from './components/ScoreHistory';
 const screens = [Home, Challenges, null, Community, Profile];
 
 export default function App() {
-  const { hasOnboarded, activeTab, darkMode, language } = useStore();
+  const { hasOnboarded, activeTab, darkMode, uvMode, language } = useStore();
   const [showSplash, setShowSplash] = useState(true);
   const [lightBotOpen, setLightBotOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
@@ -35,6 +35,14 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    if (uvMode) {
+      document.documentElement.classList.add('uv');
+    } else {
+      document.documentElement.classList.remove('uv');
+    }
+  }, [uvMode]);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {

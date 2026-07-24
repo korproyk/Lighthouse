@@ -24,7 +24,7 @@ const languages = [
 ];
 
 export default function Onboarding() {
-  const { setOnboarded, setLanguage, toggleDarkMode, darkMode, setUserName } = useStore();
+  const { setOnboarded, setLanguage, toggleDarkMode, darkMode, toggleUvMode, uvMode, setUserName } = useStore();
   const [selectedLang, setSelectedLang] = useState('en');
   const [ageRange, setAgeRange] = useState('');
   const [country, setCountry] = useState('');
@@ -40,8 +40,9 @@ export default function Onboarding() {
 
   const handleSelectTheme = (id: ThemeId) => {
     setTheme(id);
-    const wantsDark = id === 'uv' || (id === 'random' && Math.random() < 0.5);
-    if (wantsDark !== darkMode) toggleDarkMode();
+    const wantsUv = id === 'uv' || (id === 'random' && Math.random() < 0.5);
+    if (wantsUv !== darkMode) toggleDarkMode();
+    if (wantsUv !== uvMode) toggleUvMode();
   };
 
   const handleFinish = () => {
