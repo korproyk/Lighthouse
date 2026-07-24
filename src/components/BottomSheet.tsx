@@ -1,4 +1,4 @@
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { motion, AnimatePresence, PanInfo, useDragControls } from 'framer-motion';
 import { useCallback, useRef } from 'react';
 
 interface BottomSheetProps {
@@ -18,6 +18,7 @@ export default function BottomSheet({
 }: BottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const currentSnap = useRef(1);
+  const dragControls = useDragControls();
 
   const handleDragEnd = useCallback(
     (_: unknown, info: PanInfo) => {
@@ -54,11 +55,16 @@ export default function BottomSheet({
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             drag="y"
+            dragControls={dragControls}
+            dragListener={false}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={0.2}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
+            <div
+              className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none"
+              onPointerDown={(e) => dragControls.start(e)}
+            >
               <div className="w-10 h-1 rounded-full bg-ink-300 dark:bg-night-500" />
             </div>
             {title && (

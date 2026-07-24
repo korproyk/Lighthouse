@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Star, Check, Users, Plus, Copy, ArrowRight, Crown } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -48,14 +48,28 @@ export default function Challenges() {
 
   const completedToday = challenges.filter((c) => c.completed).length;
 
+  const completeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (completeTimeoutRef.current) clearTimeout(completeTimeoutRef.current);
+  }, []);
+
   const handleComplete = (id: string) => {
     completeChallenge(id);
     triggerConfetti();
     setShowComplete(true);
-    setTimeout(() => {
+    completeTimeoutRef.current = setTimeout(() => {
       setSelectedChallenge(null);
       setShowComplete(false);
     }, 1800);
+  };
+
+  const handleCloseChallenge = () => {
+    if (completeTimeoutRef.current) {
+      clearTimeout(completeTimeoutRef.current);
+      completeTimeoutRef.current = null;
+    }
+    setSelectedChallenge(null);
+    setShowComplete(false);
   };
 
   return (
@@ -143,7 +157,7 @@ export default function Challenges() {
       {/* Challenge detail sheet */}
       <BottomSheet
         isOpen={!!selectedChallenge}
-        onClose={() => setSelectedChallenge(null)}
+        onClose={handleCloseChallenge}
         title={selectedChallenge?.title}
       >
         {selectedChallenge && (

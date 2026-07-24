@@ -17,7 +17,7 @@ function timeAgo(ts: string): string {
   return `${days}d ago`;
 }
 
-const symptoms = ['All', 'Fever', 'Headache', 'Fatigue', 'Cough'];
+const symptoms = ['All', 'Doomscrolling', 'FOMO', 'Screen Fatigue', 'Sleep Loss'];
 
 const tabs = [
   { key: 'board' as const, label: 'Board' },
@@ -445,10 +445,10 @@ function LearnView() {
 }
 
 const symptomColors: Record<string, string> = {
-  Fever: '#FF4D6A',
-  Headache: '#F5A623',
-  Fatigue: '#4A90E2',
-  Cough: '#8E7CC3',
+  Doomscrolling: '#FF4D6A',
+  FOMO: '#F5A623',
+  'Screen Fatigue': '#4A90E2',
+  'Sleep Loss': '#8E7CC3',
   Other: '#63C5B2',
 };
 
@@ -647,7 +647,7 @@ function MapView({
           onClick={() => setShowReportSheet(true)}
         >
           <Plus size={16} strokeWidth={3} />
-          Report a symptom
+          Report a struggle
         </motion.button>
       </div>
 
@@ -674,7 +674,7 @@ function MapView({
       <BottomSheet
         isOpen={showReportSheet}
         onClose={() => setShowReportSheet(false)}
-        title="Report a symptom"
+        title="Report a struggle"
       >
         <ReportForm onSubmit={handleSubmit} />
       </BottomSheet>
@@ -695,7 +695,7 @@ function ReportForm({
 }: {
   onSubmit: (p: { symptom: string; note: string; locationName: string; lat: number; lng: number }) => Promise<void>;
 }) {
-  const [symptom, setSymptom] = useState('Fever');
+  const [symptom, setSymptom] = useState('Doomscrolling');
   const [note, setNote] = useState('');
   const [locationIdx, setLocationIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -718,7 +718,7 @@ function ReportForm({
     <div className="space-y-4">
       <div>
         <p className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold mb-2">
-          Symptom
+          What's going on?
         </p>
         <div className="flex flex-wrap gap-2">
           {Object.keys(symptomColors).map((s) => (

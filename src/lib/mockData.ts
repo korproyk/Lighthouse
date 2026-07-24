@@ -267,16 +267,16 @@ export const badges: Badge[] = [
 ];
 
 export const healthClusters: HealthCluster[] = [
-  { id: 'h1', lat: 37.5665, lng: 126.9780, city: 'Jung-gu, Seoul', symptom: 'Fatigue', intensity: 0.9, count: 203 },
-  { id: 'h2', lat: 37.5172, lng: 127.0473, city: 'Gangnam-gu, Seoul', symptom: 'Headache', intensity: 0.7, count: 156 },
-  { id: 'h3', lat: 37.5443, lng: 127.0557, city: 'Seongdong-gu, Seoul', symptom: 'Cough', intensity: 0.6, count: 98 },
-  { id: 'h4', lat: 37.5384, lng: 126.9654, city: 'Yongsan-gu, Seoul', symptom: 'Fever', intensity: 0.75, count: 134 },
-  { id: 'h5', lat: 37.4979, lng: 127.0276, city: 'Seocho-gu, Seoul', symptom: 'Headache', intensity: 0.55, count: 87 },
-  { id: 'h6', lat: 37.5558, lng: 126.9369, city: 'Mapo-gu, Seoul', symptom: 'Fatigue', intensity: 0.65, count: 112 },
-  { id: 'h7', lat: 37.4563, lng: 126.7052, city: 'Incheon', symptom: 'Cough', intensity: 0.8, count: 172 },
-  { id: 'h8', lat: 37.2636, lng: 127.0286, city: 'Suwon', symptom: 'Fever', intensity: 0.5, count: 76 },
-  { id: 'h9', lat: 35.1796, lng: 129.0756, city: 'Busan', symptom: 'Fatigue', intensity: 0.7, count: 143 },
-  { id: 'h10', lat: 35.8714, lng: 128.6014, city: 'Daegu', symptom: 'Headache', intensity: 0.4, count: 62 },
+  { id: 'h1', lat: 37.5665, lng: 126.9780, city: 'Jung-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.9, count: 203 },
+  { id: 'h2', lat: 37.5172, lng: 127.0473, city: 'Gangnam-gu, Seoul', symptom: 'FOMO', intensity: 0.7, count: 156 },
+  { id: 'h3', lat: 37.5443, lng: 127.0557, city: 'Seongdong-gu, Seoul', symptom: 'Sleep Loss', intensity: 0.6, count: 98 },
+  { id: 'h4', lat: 37.5384, lng: 126.9654, city: 'Yongsan-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.75, count: 134 },
+  { id: 'h5', lat: 37.4979, lng: 127.0276, city: 'Seocho-gu, Seoul', symptom: 'FOMO', intensity: 0.55, count: 87 },
+  { id: 'h6', lat: 37.5558, lng: 126.9369, city: 'Mapo-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.65, count: 112 },
+  { id: 'h7', lat: 37.4563, lng: 126.7052, city: 'Incheon', symptom: 'Sleep Loss', intensity: 0.8, count: 172 },
+  { id: 'h8', lat: 37.2636, lng: 127.0286, city: 'Suwon', symptom: 'Doomscrolling', intensity: 0.5, count: 76 },
+  { id: 'h9', lat: 35.1796, lng: 129.0756, city: 'Busan', symptom: 'Screen Fatigue', intensity: 0.7, count: 143 },
+  { id: 'h10', lat: 35.8714, lng: 128.6014, city: 'Daegu', symptom: 'FOMO', intensity: 0.4, count: 62 },
 ];
 
 export const accountabilityPartner = {
