@@ -68,7 +68,13 @@ export default function BottomSheet({
                 </h2>
               </div>
             )}
-            <div className="overflow-y-auto px-6 pb-8 selectable" style={{ maxHeight: `calc(${snapPoints[1] * 100}vh - 60px)` }}>
+            <div
+              className="overflow-y-auto px-6 selectable"
+              style={{
+                maxHeight: `calc(${snapPoints[1] * 100}vh - 60px)`,
+                paddingBottom: 'max(32px, calc(env(safe-area-inset-bottom) + 16px))',
+              }}
+            >
               {children}
             </div>
           </motion.div>
