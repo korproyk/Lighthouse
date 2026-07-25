@@ -374,80 +374,80 @@
     color: transparent;
   }
 
-  /* --- UV theme: violet & purple tone (blacklight-style dark mode) --- */
+  /* --- UV theme: soft midnight indigo (gentle, not blacklight) --- */
   .uv .hero-glow {
-    background: linear-gradient(135deg, #C084FC 0%, #A855F7 50%, #7C3AED 100%);
+    background: linear-gradient(135deg, #A79BFF 0%, #8B7EF6 50%, #6C5CE7 100%);
   }
 
   .uv .ember-glow {
-    background: linear-gradient(135deg, #D8B4FE 0%, #A855F7 60%, #7C3AED 100%);
+    background: linear-gradient(135deg, #C3BAFF 0%, #9B8DFF 60%, #6C5CE7 100%);
   }
 
   .uv .text-gradient-ember {
-    background-image: linear-gradient(135deg, #C084FC 0%, #7C3AED 100%);
+    background-image: linear-gradient(135deg, #B3A9FF 0%, #7C6FE0 100%);
   }
 
   .uv body,
   body.uv-mode {
-    background-color: #1A0E2E;
-    color: #F3EEFF;
+    background-color: #10132C;
+    color: #E9E7F6;
   }
 
   .uv .card-border {
-    border: 1px solid rgba(196, 155, 255, 0.14);
+    border: 1px solid rgba(163, 160, 224, 0.14);
   }
 
   .uv .glass {
-    background: rgba(76, 29, 149, 0.32);
-    border: 1px solid rgba(196, 155, 255, 0.16);
+    background: rgba(44, 48, 92, 0.38);
+    border: 1px solid rgba(163, 160, 224, 0.15);
     box-shadow:
-      inset 0 1px 0 rgba(216, 180, 254, 0.1),
-      0 14px 36px rgba(20, 6, 43, 0.5);
+      inset 0 1px 0 rgba(190, 186, 240, 0.08),
+      0 14px 36px rgba(6, 8, 22, 0.5);
   }
 
   .uv .glass-strong {
-    background: rgba(58, 20, 110, 0.72);
-    border: 1px solid rgba(196, 155, 255, 0.2);
+    background: rgba(32, 36, 72, 0.74);
+    border: 1px solid rgba(163, 160, 224, 0.18);
   }
 
   .uv .glass-tint-warm {
     background:
-      linear-gradient(135deg, rgba(167, 139, 250, 0.32), rgba(217, 70, 239, 0.18) 70%, rgba(42, 16, 82, 0.75));
-    border: 1px solid rgba(196, 155, 255, 0.28);
+      linear-gradient(135deg, rgba(139, 126, 246, 0.26), rgba(91, 127, 217, 0.14) 70%, rgba(20, 23, 50, 0.78));
+    border: 1px solid rgba(163, 160, 224, 0.24);
   }
 
   .uv .capsule-nav {
-    background: rgba(26, 10, 51, 0.75);
-    border: 1px solid rgba(196, 155, 255, 0.18);
+    background: rgba(16, 19, 42, 0.78);
+    border: 1px solid rgba(163, 160, 224, 0.16);
     box-shadow:
-      inset 0 1px 0 rgba(216, 180, 254, 0.08),
-      0 20px 50px rgba(0, 0, 0, 0.55);
+      inset 0 1px 0 rgba(190, 186, 240, 0.07),
+      0 20px 50px rgba(0, 0, 0, 0.5);
   }
 
   .uv .aurora-mesh::before {
-    background: radial-gradient(circle at center, #A78BFA 0%, transparent 70%);
-    opacity: 0.4;
-  }
-
-  .uv .aurora-mesh::after {
-    background: radial-gradient(circle at center, #D946EF 0%, transparent 70%);
+    background: radial-gradient(circle at center, #8B7EF6 0%, transparent 70%);
     opacity: 0.3;
   }
 
+  .uv .aurora-mesh::after {
+    background: radial-gradient(circle at center, #6C8CE0 0%, transparent 70%);
+    opacity: 0.22;
+  }
+
   .uv .noise-overlay {
-    opacity: 0.1;
+    opacity: 0.07;
     mix-blend-mode: overlay;
   }
 
   .uv .app-container {
     background:
-      radial-gradient(ellipse at 10% -10%, rgba(167, 139, 250, 0.28), transparent 45%),
-      radial-gradient(ellipse at 95% 100%, rgba(217, 70, 239, 0.2), transparent 50%),
-      #1A0E2E;
+      radial-gradient(ellipse at 10% -10%, rgba(139, 126, 246, 0.2), transparent 45%),
+      radial-gradient(ellipse at 95% 100%, rgba(91, 127, 217, 0.14), transparent 50%),
+      #10132C;
   }
 
   .uv .score-ring-bg {
-    stroke: #3B1F63;
+    stroke: #292D57;
   }
 }
 
@@ -480,9 +480,9 @@
 
   .uv #root {
     background:
-      radial-gradient(ellipse at 20% 20%, rgba(167, 139, 250, 0.22), transparent 50%),
-      radial-gradient(ellipse at 80% 80%, rgba(217, 70, 239, 0.14), transparent 50%),
-      #1A0E2E;
+      radial-gradient(ellipse at 20% 20%, rgba(139, 126, 246, 0.18), transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(91, 127, 217, 0.12), transparent 50%),
+      #10132C;
   }
 
   .app-container {
@@ -499,6 +499,6 @@
   }
 
   .uv .app-container {
-    border-color: rgba(196, 155, 255, 0.12);
+    border-color: rgba(163, 160, 224, 0.12);
   }
 }

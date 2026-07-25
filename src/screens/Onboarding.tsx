@@ -1,16 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, ArrowLeft, PenLine, Globe, Cake, Palette, Eye, EyeOff, Lock, Loader2 } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowLeft, PenLine, Globe, Cake, Eye, EyeOff, Lock, Loader2 } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { hashPassword } from '../lib/hash';
 import BeaconMascot from '../components/BeaconMascot';
-
-const themes = [
-  { id: 'basic', label: 'Basic', swatch: '#FFB27A' },
-  { id: 'uv', label: 'UV', swatch: 'linear-gradient(135deg, #7C3AED, #4C1D95)' },
-  { id: 'random', label: 'Random', swatch: 'conic-gradient(from 180deg, #FF4D6A, #FFB547, #34D399, #3B82F6, #A78BFA, #FF4D6A)' },
-] as const;
-type ThemeId = typeof themes[number]['id'];
+import LighthouseIllustration from '../components/LighthouseIllustration';
 
 const ageRanges = ['5-7', '8-10', '11-12', '13-14', '15-16', '17-19', '20+'];
 const countries = [
@@ -25,7 +19,7 @@ const languages = [
 ];
 
 export default function Onboarding() {
-  const { setOnboarded, setLanguage, toggleDarkMode, darkMode, toggleUvMode, uvMode, hasAccount, createAccount, loginAccount, verifyAccountPassword } = useStore();
+  const { setOnboarded, setLanguage, hasAccount, createAccount, loginAccount, verifyAccountPassword } = useStore();
   const [step, setStep] = useState<'details' | 'password'>('details');
   const [accountMode, setAccountMode] = useState<'create' | 'login'>('create');
 
@@ -33,7 +27,6 @@ export default function Onboarding() {
   const [ageRange, setAgeRange] = useState('');
   const [country, setCountry] = useState('');
   const [name, setName] = useState('');
-  const [theme, setTheme] = useState<ThemeId>('basic');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -47,13 +40,6 @@ export default function Onboarding() {
     !country && 'country',
   ].filter(Boolean) as string[];
   const canContinue = missingFields.length === 0;
-
-  const handleSelectTheme = (id: ThemeId) => {
-    setTheme(id);
-    const wantsUv = id === 'uv' || (id === 'random' && Math.random() < 0.5);
-    if (wantsUv !== darkMode) toggleDarkMode();
-    if (wantsUv !== uvMode) toggleUvMode();
-  };
 
   const handleContinueFromDetails = () => {
     if (!canContinue) return;
@@ -165,137 +151,96 @@ export default function Onboarding() {
           >
             {/* Scroll content */}
             <div className="relative screen-scroll" style={{ paddingBottom: 140, zIndex: 2 }}>
-              <div className="px-6 pt-6">
-                <h1 className="font-display font-bold text-display-xl text-ink-900 tracking-tight" style={{ lineHeight: 1.05 }}>
-                  Let's get you{' '}
-                  <span className="text-gradient-ember">set up</span>
+              <div className="relative px-6 pt-6">
+                <LighthouseIllustration className="absolute top-0 right-0 w-32 h-32 pointer-events-none" />
+                <h1 className="relative font-display font-bold text-display-xl text-ink-900 tracking-tight" style={{ lineHeight: 1.05 }}>
+                  Welcome
                 </h1>
-                <p className="mt-2 text-body text-ink-600 leading-relaxed">
+                <p className="relative mt-1 text-body font-bold text-coral-500">
+                  Stays on this device
+                </p>
+                <p className="relative mt-2 text-body text-ink-600 leading-relaxed max-w-[85%]">
                   Just the basics — your answers stay private on this device.
                 </p>
               </div>
 
-              {/* Glass form card */}
-              <div className="px-6 mt-6">
-                <motion.div
-                  className="relative overflow-hidden rounded-hero glass-strong p-5 space-y-6"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <div
-                    className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
-                    style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(28px)' }}
+              {/* Fields */}
+              <div className="px-6 mt-6 space-y-6">
+                {/* Language */}
+                <Field icon={Globe} label="Language">
+                  <div className="flex gap-2">
+                    {languages.map((lang) => (
+                      <motion.button
+                        key={lang.code}
+                        className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
+                          selectedLang === lang.code
+                            ? 'hero-glow text-white shadow-soft'
+                            : 'glass text-ink-700'
+                        }`}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setSelectedLang(lang.code)}
+                      >
+                        <span>{lang.flag}</span>
+                        <span>{lang.name}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </Field>
+
+                {/* Age */}
+                <Field icon={Cake} label="Age range" required>
+                  <div className="flex flex-wrap gap-2">
+                    {ageRanges.map((range) => (
+                      <motion.button
+                        key={range}
+                        className={`py-2.5 px-3.5 rounded-capsule font-display font-bold text-caption ${
+                          ageRange === range
+                            ? 'hero-glow text-white shadow-soft'
+                            : 'glass text-ink-700'
+                        }`}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setAgeRange(range)}
+                      >
+                        {range}
+                      </motion.button>
+                    ))}
+                  </div>
+                </Field>
+
+                {/* Country */}
+                <Field icon={Globe} label="Country" required>
+                  <div className="flex gap-2 flex-wrap">
+                    {countries.map((c) => (
+                      <motion.button
+                        key={c.code}
+                        className={`flex items-center gap-2 py-2.5 px-3.5 rounded-capsule font-display font-bold text-caption ${
+                          country === c.code
+                            ? 'hero-glow text-white shadow-soft'
+                            : 'glass text-ink-700'
+                        }`}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setCountry(c.code)}
+                      >
+                        <span>{c.flag}</span>
+                        {c.code}
+                      </motion.button>
+                    ))}
+                  </div>
+                </Field>
+
+                {/* Nickname */}
+                <Field icon={PenLine} label="Nickname" required>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="What should we call you?"
+                    className="w-full py-3 px-4 rounded-capsule glass text-body text-ink-900 placeholder:text-ink-300 focus-ring"
                   />
-                  <div
-                    className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full pointer-events-none"
-                    style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.3), transparent 70%)', filter: 'blur(28px)' }}
-                  />
-
-                  {/* Language */}
-                  <Field icon={Globe} label="Language">
-                    <div className="flex gap-2">
-                      {languages.map((lang) => (
-                        <motion.button
-                          key={lang.code}
-                          className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
-                            selectedLang === lang.code
-                              ? 'hero-glow text-white shadow-soft'
-                              : 'glass text-ink-700'
-                          }`}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => setSelectedLang(lang.code)}
-                        >
-                          <span>{lang.flag}</span>
-                          <span>{lang.name}</span>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  {/* Age */}
-                  <Field icon={Cake} label="Age range" required>
-                    <div className="flex flex-wrap gap-2">
-                      {ageRanges.map((range) => (
-                        <motion.button
-                          key={range}
-                          className={`py-2.5 px-3.5 rounded-capsule font-display font-bold text-caption ${
-                            ageRange === range
-                              ? 'hero-glow text-white shadow-soft'
-                              : 'glass text-ink-700'
-                          }`}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => setAgeRange(range)}
-                        >
-                          {range}
-                        </motion.button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  {/* Country */}
-                  <Field icon={Globe} label="Country" required>
-                    <div className="flex gap-2 flex-wrap">
-                      {countries.map((c) => (
-                        <motion.button
-                          key={c.code}
-                          className={`flex items-center gap-2 py-2.5 px-3.5 rounded-capsule font-display font-bold text-caption ${
-                            country === c.code
-                              ? 'hero-glow text-white shadow-soft'
-                              : 'glass text-ink-700'
-                          }`}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => setCountry(c.code)}
-                        >
-                          <span>{c.flag}</span>
-                          {c.code}
-                        </motion.button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  {/* Nickname */}
-                  <Field icon={PenLine} label="Nickname" required>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="What should we call you?"
-                      className="w-full py-3 px-4 rounded-capsule glass text-body text-ink-900 placeholder:text-ink-300 focus-ring"
-                    />
-                    <p className="mt-1.5 text-[11px] text-ink-600">
-                      Stays private on your device — you'll set a password next
-                    </p>
-                  </Field>
-
-                  {/* Theme */}
-                  <Field icon={Palette} label="Theme">
-                    <div className="flex gap-2">
-                      {themes.map((th) => (
-                        <motion.button
-                          key={th.id}
-                          className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
-                            theme === th.id
-                              ? 'hero-glow text-white shadow-soft'
-                              : 'glass text-ink-700'
-                          }`}
-                          whileTap={{ scale: 0.97 }}
-                          onClick={() => handleSelectTheme(th.id)}
-                        >
-                          <span
-                            className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${
-                              theme === th.id ? 'border-2 border-white' : ''
-                            }`}
-                            style={theme === th.id ? undefined : { background: th.swatch }}
-                          >
-                            {theme === th.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                          </span>
-                          <span>{th.label}</span>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </Field>
-                </motion.div>
+                  <p className="mt-1.5 text-[11px] text-ink-600">
+                    Stays private on your device — you'll set a password next
+                  </p>
+                </Field>
               </div>
 
               {/* Beacon mascot + reassurance bubble */}
@@ -357,7 +302,7 @@ export default function Onboarding() {
                 whileTap={canContinue ? { scale: 0.97 } : undefined}
                 onClick={handleContinueFromDetails}
               >
-                {canContinue ? 'Continue' : `Fill in ${missingFields.join(', ')}`}
+                {canContinue ? "Let's go" : `Fill in ${missingFields.join(', ')}`}
                 {canContinue && <ArrowRight size={20} strokeWidth={2.5} />}
               </motion.button>
             </div>

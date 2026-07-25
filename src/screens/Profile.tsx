@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Flame, Target, Trophy, Globe, Settings, ChevronRight,
-  Languages, Bell, Shield, LifeBuoy, Info, LogOut, Moon, Sun,
+  Languages, Bell, Shield, LifeBuoy, Info, LogOut, Palette, Moon,
   Sunrise, Calendar, Heart, Smartphone, Brain, Megaphone,
 } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import { badges } from '../lib/mockData';
+import { themes, resolveThemeUv, type ThemeId } from '../lib/themes';
 import BottomSheet from '../components/BottomSheet';
 import Lumi from '../components/Lumi';
 
@@ -25,10 +26,12 @@ const badgeIcons: Record<string, React.ElementType> = {
 };
 
 export default function Profile() {
-  const { user, darkMode, toggleDarkMode, setLanguage, language, logOut } = useStore();
+  const { user, darkMode, toggleDarkMode, uvMode, toggleUvMode, setLanguage, language, logOut } = useStore();
   const [showSettings, setShowSettings] = useState(false);
   const [showTierUp, setShowTierUp] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false);
+  const [themeChoice, setThemeChoice] = useState<ThemeId>(uvMode ? 'uv' : 'basic');
 
   const tier = tierData[user.tier];
   const tierProgress = ((user.currentScore - tier.min) / (tier.max - tier.min)) * 100;
@@ -38,6 +41,13 @@ export default function Profile() {
   const handleLogOut = () => {
     setShowSettings(false);
     logOut();
+  };
+
+  const handleSelectTheme = (id: ThemeId) => {
+    setThemeChoice(id);
+    const wantsUv = resolveThemeUv(id);
+    if (wantsUv !== darkMode) toggleDarkMode();
+    if (wantsUv !== uvMode) toggleUvMode();
   };
 
   return (
@@ -263,9 +273,10 @@ export default function Profile() {
             onClick={() => setShowLangPicker(true)}
           />
           <SettingsRow
-            icon={darkMode ? Sun : Moon}
-            label={darkMode ? 'Light Mode' : 'Dark Mode'}
-            onClick={toggleDarkMode}
+            icon={Palette}
+            label="Theme"
+            value={themes.find((th) => th.id === themeChoice)?.label}
+            onClick={() => setShowThemePicker((v) => !v)}
           />
           <SettingsRow icon={Bell} label={t('settings.notifications')} />
           <SettingsRow icon={Shield} label={t('settings.privacy')} />
@@ -301,6 +312,41 @@ export default function Profile() {
                   }}
                 >
                   {lang.name}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Theme picker inline */}
+        <AnimatePresence>
+          {showThemePicker && (
+            <motion.div
+              className="mt-4 flex gap-2"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              {themes.map((th) => (
+                <motion.button
+                  key={th.id}
+                  className={`flex-1 py-2.5 rounded-capsule text-caption font-bold flex items-center justify-center gap-1.5 ${
+                    themeChoice === th.id
+                      ? 'hero-glow text-white shadow-soft'
+                      : 'glass text-ink-700 dark:text-ink-100'
+                  }`}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleSelectTheme(th.id)}
+                >
+                  <span
+                    className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${
+                      themeChoice === th.id ? 'border-2 border-white' : ''
+                    }`}
+                    style={themeChoice === th.id ? undefined : { background: th.swatch }}
+                  >
+                    {themeChoice === th.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </span>
+                  <span>{th.label}</span>
                 </motion.button>
               ))}
             </motion.div>
