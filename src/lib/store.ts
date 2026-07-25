@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { userProfile, checkIns, challenges, badges } from './mockData';
-import type { CheckIn, Challenge, Badge } from './mockData';
+import { userProfile, checkIns, challenges, badges, SLEEP_GOAL_HOURS } from './mockData';
+import type { CheckIn, Challenge, Badge, ChallengeGroup } from './mockData';
 import { setLanguage } from './i18n';
 
 export interface Account {
@@ -13,6 +13,18 @@ export interface Account {
   darkMode: boolean;
   uvMode: boolean;
   language: string;
+  joinedGroupId?: string | null;
+  customGroups?: ChallengeGroup[];
+}
+
+export interface SleepSession {
+  startedAt: number;
+}
+
+export interface SleepRecord {
+  startedAt: number;
+  endedAt: number;
+  hours: number;
 }
 
 interface AppState {
@@ -30,6 +42,10 @@ interface AppState {
   sessionStartTime: number;
   showEasterEgg: boolean;
   accounts: Record<string, Account>;
+  sleepSession: SleepSession | null;
+  lastSleep: SleepRecord | null;
+  joinedGroupId: string | null;
+  customGroups: ChallengeGroup[];
 
   setOnboarded: () => void;
   toggleDarkMode: () => void;
@@ -52,6 +68,12 @@ interface AppState {
   loginAccount: (nickname: string) => boolean;
   verifyAccountPassword: (nickname: string, passwordHash: string) => boolean;
   syncAccount: (nickname: string) => void;
+  startSleepSession: () => void;
+  stopSleepSession: () => SleepRecord | null;
+  cancelSleepSession: () => void;
+  joinGroup: (id: string) => boolean;
+  leaveGroup: () => void;
+  createGroup: (name: string) => ChallengeGroup | null;
 }
 
 function accountKey(nickname: string): string {
@@ -75,6 +97,10 @@ export const useStore = create<AppState>()(
       sessionStartTime: Date.now(),
       showEasterEgg: false,
       accounts: {},
+      sleepSession: null,
+      lastSleep: null,
+      joinedGroupId: null,
+      customGroups: [],
 
       setOnboarded: () => set({ hasOnboarded: true }),
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
@@ -123,6 +149,10 @@ export const useStore = create<AppState>()(
         set({
           hasOnboarded: false,
           activeTab: 0,
+          sleepSession: null,
+          lastSleep: null,
+          joinedGroupId: null,
+          customGroups: [],
         });
       },
 
@@ -177,12 +207,18 @@ export const useStore = create<AppState>()(
               darkMode: s.darkMode,
               uvMode: s.uvMode,
               language: s.language,
+              joinedGroupId: null,
+              customGroups: [],
             },
           },
           user: freshUser,
           checkIns: freshCheckIns,
           challenges: freshChallenges,
           badges: freshBadges,
+          joinedGroupId: null,
+          customGroups: [],
+          sleepSession: null,
+          lastSleep: null,
         });
       },
       loginAccount: (nickname) => {
@@ -197,6 +233,8 @@ export const useStore = create<AppState>()(
           darkMode: account.darkMode,
           uvMode: account.uvMode,
           language: account.language,
+          joinedGroupId: account.joinedGroupId ?? null,
+          customGroups: account.customGroups ?? [],
         });
         return true;
       },
@@ -216,9 +254,79 @@ export const useStore = create<AppState>()(
               darkMode: s.darkMode,
               uvMode: s.uvMode,
               language: s.language,
+              joinedGroupId: s.joinedGroupId,
+              customGroups: s.customGroups,
             },
           },
         });
+      },
+
+      // --- Sleep tracking ---
+      // Only the bedtime stamp is stored, so elapsed time is always derived from
+      // the clock. That keeps the count honest while the app is backgrounded,
+      // killed, or the phone is locked all night.
+      startSleepSession: () => set({ sleepSession: { startedAt: Date.now() } }),
+      cancelSleepSession: () => set({ sleepSession: null }),
+      stopSleepSession: () => {
+        const s = get();
+        if (!s.sleepSession) return null;
+        const endedAt = Date.now();
+        const record: SleepRecord = {
+          startedAt: s.sleepSession.startedAt,
+          endedAt,
+          hours: Math.max(0, (endedAt - s.sleepSession.startedAt) / 3_600_000),
+        };
+        const today = new Date().toISOString().split('T')[0];
+        set({
+          sleepSession: null,
+          lastSleep: record,
+          checkIns: s.checkIns.map((c) =>
+            c.date === today ? { ...c, sleep: Math.round(record.hours * 10) / 10 } : c
+          ),
+        });
+        if (record.hours >= SLEEP_GOAL_HOURS) {
+          const quest = s.challenges.find((c) => c.tracker === 'sleep');
+          if (quest && !quest.completed) get().completeChallenge(quest.id);
+        }
+        return record;
+      },
+
+      // One group at a time — join / create both fail if you're already in one.
+      joinGroup: (id) => {
+        if (get().joinedGroupId) return false;
+        set({ joinedGroupId: id });
+        return true;
+      },
+      leaveGroup: () => set({ joinedGroupId: null }),
+      createGroup: (name) => {
+        const s = get();
+        if (s.joinedGroupId) return null;
+        const trimmed = name.trim();
+        if (!trimmed) return null;
+        const code =
+          trimmed.toUpperCase().replace(/\s+/g, '').slice(0, 4) +
+          String(Math.floor(Math.random() * 90 + 10));
+        const group: ChallengeGroup = {
+          id: `created-${code}`,
+          name: trimmed,
+          code,
+          members: [
+            {
+              name: s.user.name,
+              avatar: (s.user.name?.[0] || 'Y').toUpperCase(),
+              flag: s.user.countryFlag,
+              score: Math.round(s.user.currentScore),
+              challenges: s.user.totalChallenges,
+            },
+          ],
+          totalScore: Math.round(s.user.currentScore),
+          createdAt: new Date().toISOString().split('T')[0],
+        };
+        set({
+          customGroups: [...s.customGroups, group],
+          joinedGroupId: group.id,
+        });
+        return group;
       },
     }),
     {
@@ -233,6 +341,10 @@ export const useStore = create<AppState>()(
         challenges: state.challenges,
         badges: state.badges,
         accounts: state.accounts,
+        sleepSession: state.sleepSession,
+        lastSleep: state.lastSleep,
+        joinedGroupId: state.joinedGroupId,
+        customGroups: state.customGroups,
       }),
     }
   )

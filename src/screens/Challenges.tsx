@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Star, Check, Users, Plus, Copy, ArrowRight, Crown } from 'lucide-react';
+import { Clock, Star, Check, Users, Plus, Copy, ArrowRight, Moon, Sunrise } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import Lumi from '../components/Lumi';
+import BeaconMascot from '../components/BeaconMascot';
 import BottomSheet from '../components/BottomSheet';
-import { leaderboard, challengeGroups } from '../lib/mockData';
+import { leaderboard, challengeGroups, SLEEP_GOAL_HOURS } from '../lib/mockData';
 import type { Challenge, ChallengeGroup } from '../lib/mockData';
 
 const packs = [
@@ -40,7 +41,9 @@ export default function Challenges() {
   const [showJoinGroup, setShowJoinGroup] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<ChallengeGroup | null>(null);
 
+  const sleepQuest = challenges.find((c) => c.tracker === 'sleep') ?? null;
   const filtered = challenges.filter((c) => {
+    if (c.required || c.tracker === 'sleep') return false;
     if (activePack !== 'all' && c.pack !== activePack) return false;
     if (activeDifficulty && c.difficulty !== activeDifficulty) return false;
     return true;
@@ -115,6 +118,7 @@ export default function Challenges() {
           >
             <ChallengesView
               challenges={filtered}
+              sleepQuest={sleepQuest}
               activePack={activePack}
               setActivePack={setActivePack}
               activeDifficulty={activeDifficulty}
@@ -154,13 +158,13 @@ export default function Challenges() {
         )}
       </AnimatePresence>
 
-      {/* Challenge detail sheet */}
+      {/* Challenge detail sheet — sleep quest uses its own tracker UI */}
       <BottomSheet
-        isOpen={!!selectedChallenge}
+        isOpen={!!selectedChallenge && selectedChallenge.tracker !== 'sleep'}
         onClose={handleCloseChallenge}
         title={selectedChallenge?.title}
       >
-        {selectedChallenge && (
+        {selectedChallenge && selectedChallenge.tracker !== 'sleep' && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <span>{selectedChallenge.flag}</span>
@@ -210,11 +214,167 @@ export default function Challenges() {
   );
 }
 
+function formatElapsed(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/* =========== Required sleep quest =========== */
+function SleepQuestCard({ quest }: { quest: Challenge }) {
+  const {
+    sleepSession,
+    lastSleep,
+    startSleepSession,
+    stopSleepSession,
+  } = useStore();
+  const [now, setNow] = useState(Date.now());
+  const [result, setResult] = useState<{ hours: number; completed: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!sleepSession) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [sleepSession]);
+
+  const elapsedMs = sleepSession ? now - sleepSession.startedAt : 0;
+  const elapsedHours = elapsedMs / 3_600_000;
+  const progress = Math.min(1, elapsedHours / SLEEP_GOAL_HOURS);
+
+  const handleWake = () => {
+    const record = stopSleepSession();
+    if (!record) return;
+    const completed = record.hours >= SLEEP_GOAL_HOURS;
+    setResult({ hours: record.hours, completed });
+    if (completed) triggerConfetti();
+  };
+
+  return (
+    <motion.div
+      className={`relative mx-6 mt-4 p-5 rounded-hero overflow-hidden ${
+        quest.completed ? 'glass-tint-warm' : 'glass-strong'
+      }`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <div
+        className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)', filter: 'blur(26px)' }}
+      />
+      <div
+        className="absolute -bottom-14 -left-14 w-40 h-40 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.4), transparent 70%)', filter: 'blur(26px)' }}
+      />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-micro uppercase tracking-wider font-bold text-lavender-500">Required</span>
+            <span className="text-micro uppercase tracking-wider font-bold text-ink-300">· Sleep</span>
+          </div>
+          <h3 className="font-display font-bold text-title text-ink-900 dark:text-ink-100">{quest.title}</h3>
+          <p className="text-caption text-ink-600 dark:text-ink-300 mt-1">{quest.description}</p>
+        </div>
+        <div className="w-12 h-12 rounded-full bg-night-800/10 dark:bg-night-700 flex items-center justify-center shrink-0">
+          <Moon size={22} className="text-lavender-500" />
+        </div>
+      </div>
+
+      {sleepSession ? (
+        <div className="relative mt-4 space-y-3">
+          <div className="text-center">
+            <p className="text-micro uppercase tracking-wider text-ink-300 font-bold mb-1">Sleeping</p>
+            <p className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tabular-nums tracking-tight">
+              {formatElapsed(elapsedMs)}
+            </p>
+            <p className="text-caption text-ink-300 mt-1">
+              Goal {SLEEP_GOAL_HOURS}h · {Math.floor(progress * 100)}%
+            </p>
+          </div>
+          <div className="h-2 rounded-full bg-ink-100 dark:bg-night-700 overflow-hidden">
+            <motion.div
+              className="h-full hero-glow rounded-full"
+              initial={false}
+              animate={{ width: `${progress * 100}%` }}
+              transition={{ duration: 0.4 }}
+            />
+          </div>
+          <p className="text-[11px] text-ink-300 text-center">
+            Timer keeps running if you close the app. Wake up and stop it when you&apos;re ready.
+          </p>
+          <motion.button
+            className="w-full py-3.5 rounded-capsule hero-glow text-white font-display font-bold text-caption shadow-soft flex items-center justify-center gap-2"
+            whileTap={{ scale: 0.97 }}
+            onClick={handleWake}
+          >
+            <Sunrise size={16} />
+            I&apos;m awake
+          </motion.button>
+        </div>
+      ) : (
+        <div className="relative mt-4 space-y-3">
+          {result && (
+            <div className={`p-3 rounded-card text-center ${
+              result.completed
+                ? 'bg-mint-500/15 text-mint-700 dark:text-mint-300'
+                : 'bg-coral-500/10 text-coral-600 dark:text-coral-300'
+            }`}>
+              <p className="font-display font-bold text-body">
+                {result.hours.toFixed(1)}h recorded
+              </p>
+              <p className="text-caption mt-0.5">
+                {result.completed
+                  ? `Goal reached — +${quest.points} pts`
+                  : `Need ${SLEEP_GOAL_HOURS}h to complete. Try again tonight.`}
+              </p>
+            </div>
+          )}
+          {!result && lastSleep && !quest.completed && (
+            <p className="text-caption text-ink-300 text-center">
+              Last night: {lastSleep.hours.toFixed(1)}h
+            </p>
+          )}
+          {quest.completed ? (
+            <div className="flex items-center justify-center gap-2 py-3">
+              <Check size={16} className="text-mint-500" strokeWidth={3} />
+              <span className="font-display font-bold text-caption text-mint-700 dark:text-mint-300">
+                Completed
+              </span>
+            </div>
+          ) : (
+            <motion.button
+              className="w-full py-3.5 rounded-capsule hero-glow text-white font-display font-bold text-caption shadow-soft flex items-center justify-center gap-2"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                setResult(null);
+                startSleepSession();
+                setNow(Date.now());
+              }}
+            >
+              <Moon size={16} />
+              Start sleep
+            </motion.button>
+          )}
+          <div className="flex items-center justify-between text-caption text-ink-300">
+            <span className="flex items-center gap-1"><Clock size={12} />{quest.timeEstimate}</span>
+            <span className="flex items-center gap-1 text-lighthouse-600 dark:text-lighthouse-300 font-bold">
+              <Star size={12} fill="currentColor" />+{quest.points}
+            </span>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 /* =========== Challenges Sub-view =========== */
 function ChallengesView({
-  challenges, activePack, setActivePack, activeDifficulty, setActiveDifficulty, completedToday, onSelect,
+  challenges, sleepQuest, activePack, setActivePack, activeDifficulty, setActiveDifficulty, completedToday, onSelect,
 }: {
   challenges: Challenge[];
+  sleepQuest: Challenge | null;
   activePack: string;
   setActivePack: (p: string) => void;
   activeDifficulty: typeof difficulties[number] | null;
@@ -224,6 +384,8 @@ function ChallengesView({
 }) {
   return (
     <>
+      {sleepQuest && <SleepQuestCard quest={sleepQuest} />}
+
       {/* Pack filter */}
       <div className="px-6 mt-4 flex gap-2 overflow-x-auto scrollbar-none">
         {packs.map((pack) => (
@@ -350,14 +512,33 @@ function ChallengesView({
 
 /* =========== Leaderboard View =========== */
 function LeaderboardView() {
-  const podium = leaderboard.slice(0, 3);
-  const rest = leaderboard.slice(3);
+  const { user } = useStore();
+  const rows = useMemo(() => {
+    // Mirror the current user's live score onto the "you" row.
+    return leaderboard.map((entry) =>
+      entry.isYou
+        ? {
+            ...entry,
+            name: user.name || entry.name,
+            score: Math.round(user.currentScore),
+            streak: user.currentStreak,
+            flag: user.countryFlag || entry.flag,
+            country: user.country || entry.country,
+            avatar: (user.name?.[0] || entry.avatar).toUpperCase(),
+          }
+        : entry
+    ).sort((a, b) => b.score - a.score)
+      .map((entry, i) => ({ ...entry, rank: i + 1 }));
+  }, [user]);
+
+  const podium = [rows[1], rows[0], rows[2]].filter(Boolean);
+  const rest = rows.slice(3);
 
   return (
     <div className="px-6 mt-5">
-      {/* Podium in a glass hero */}
+      {/* Podium — 2 · 1 · 3 */}
       <motion.div
-        className="relative overflow-hidden rounded-hero glass-strong p-5 mb-4"
+        className="relative overflow-hidden rounded-hero glass-strong px-3 pt-6 pb-2 mb-4"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -369,76 +550,79 @@ function LeaderboardView() {
           className="absolute -bottom-16 -left-16 w-44 h-44 rounded-full pointer-events-none"
           style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.35), transparent 70%)', filter: 'blur(28px)' }}
         />
-      <div className="relative flex items-end justify-center gap-3">
-        {/* 2nd place */}
-        <motion.div
-          className="flex flex-col items-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-ink-100 to-ink-300 dark:from-night-500 dark:to-night-700 flex items-center justify-center text-lg font-bold text-ink-900 dark:text-ink-100 ring-2 ring-ink-300 dark:ring-night-500">
-            {podium[1].avatar}
-          </div>
-          <p className="mt-1.5 text-caption font-bold text-ink-900 dark:text-ink-100">{podium[1].name}</p>
-          <p className="text-[11px] text-ink-300">{podium[1].flag} {podium[1].score}</p>
-          <div className="mt-2 w-16 h-16 rounded-t-sm bg-ink-100 dark:bg-night-700 flex items-center justify-center">
-            <span className="font-display font-bold text-display-l text-ink-600 dark:text-ink-300">2</span>
-          </div>
-        </motion.div>
 
-        {/* 1st place */}
-        <motion.div
-          className="flex flex-col items-center -mt-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0 }}
-        >
-          <div className="relative">
-            <Crown size={20} className="absolute -top-5 left-1/2 -translate-x-1/2 text-lighthouse-500" fill="#FFB547" />
-            <div className="w-16 h-16 rounded-full hero-glow flex items-center justify-center text-xl font-bold text-white ring-3 ring-lighthouse-300">
-              {podium[0].avatar}
-            </div>
-          </div>
-          <p className="mt-1.5 text-caption font-bold text-ink-900 dark:text-ink-100">{podium[0].name}</p>
-          <p className="text-[11px] text-lighthouse-600 dark:text-lighthouse-300 font-bold">{podium[0].flag} {podium[0].score}</p>
-          <div className="mt-2 w-16 h-24 rounded-t-sm hero-glow flex items-center justify-center">
-            <span className="font-display font-bold text-display-l text-white">1</span>
-          </div>
-        </motion.div>
-
-        {/* 3rd place */}
-        <motion.div
-          className="flex flex-col items-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-lighthouse-100 to-lighthouse-300 flex items-center justify-center text-lg font-bold text-lighthouse-700 ring-2 ring-lighthouse-300">
-            {podium[2].avatar}
-          </div>
-          <p className="mt-1.5 text-caption font-bold text-ink-900 dark:text-ink-100">{podium[2].name}</p>
-          <p className="text-[11px] text-ink-300">{podium[2].flag} {podium[2].score}</p>
-          <div className="mt-2 w-16 h-12 rounded-t-sm bg-lighthouse-100 dark:bg-lighthouse-700/20 flex items-center justify-center">
-            <span className="font-display font-bold text-display-l text-lighthouse-600 dark:text-lighthouse-300">3</span>
-          </div>
-        </motion.div>
-      </div>
+        <div className="relative flex items-end justify-center gap-2">
+          {podium.map((entry, visualIndex) => {
+            // visualIndex: 0 = 2nd, 1 = 1st, 2 = 3rd
+            const place = visualIndex === 1 ? 1 : visualIndex === 0 ? 2 : 3;
+            const isFirst = place === 1;
+            const barH = isFirst ? 'h-24' : place === 2 ? 'h-16' : 'h-12';
+            return (
+              <motion.div
+                key={entry.rank}
+                className={`flex flex-col items-center flex-1 max-w-[7.5rem] ${isFirst ? '-mt-3' : ''}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: isFirst ? 0 : place * 0.08 }}
+              >
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold mb-1.5 ${
+                  isFirst ? 'hero-glow text-white' : 'bg-ink-100 dark:bg-night-700 text-ink-600 dark:text-ink-300'
+                }`}>
+                  {place}
+                </span>
+                {isFirst ? (
+                  <div className="w-16 h-16 rounded-full hero-glow flex items-center justify-center ring-4 ring-lighthouse-300/60 overflow-hidden shadow-soft">
+                    <BeaconMascot size={52} animate className="translate-y-0.5" />
+                  </div>
+                ) : (
+                  <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold ring-2 ${
+                    place === 2
+                      ? 'bg-gradient-to-br from-lighthouse-100 to-lighthouse-300 text-lighthouse-700 ring-lighthouse-200'
+                      : 'bg-gradient-to-br from-ocean-50 to-ocean-300 text-ocean-700 ring-ocean-300/50'
+                  }`}>
+                    {entry.avatar}
+                  </div>
+                )}
+                <p className="mt-1.5 text-caption font-bold text-ink-900 dark:text-ink-100 truncate max-w-full">
+                  {entry.name}
+                </p>
+                <p className={`text-[11px] font-bold flex items-center gap-0.5 ${
+                  isFirst ? 'text-lighthouse-600 dark:text-lighthouse-300' : 'text-ink-300'
+                }`}>
+                  <span aria-hidden>{'\u{1F525}'}</span> {entry.score}
+                </p>
+                <div className={`mt-2 w-full ${barH} rounded-t-sm flex items-center justify-center ${
+                  isFirst
+                    ? 'hero-glow'
+                    : 'bg-paper dark:bg-night-700 card-border'
+                }`}>
+                  <span className={`font-display font-bold text-display-l ${
+                    isFirst ? 'text-white' : 'text-ink-300'
+                  }`}>
+                    {place}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </motion.div>
 
-      {/* Rest of list */}
+      {/* Ranks 4+ */}
       <div className="space-y-2">
         {rest.map((entry, i) => (
           <motion.div
             key={entry.rank}
             className={`relative overflow-hidden flex items-center gap-3 p-3.5 rounded-card ${
-              entry.isYou ? 'glass-tint-warm' : 'glass'
+              entry.isYou
+                ? 'glass-tint-warm ring-2 ring-lighthouse-400/60'
+                : 'glass'
             }`}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.04 }}
           >
-            <span className={`w-7 text-center font-display font-bold text-caption ${
+            <span className={`w-6 text-center font-display font-bold text-caption ${
               entry.isYou ? 'text-lighthouse-600' : 'text-ink-300'
             }`}>
               {entry.rank}
@@ -451,19 +635,19 @@ function LeaderboardView() {
               {entry.avatar}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className={`font-display font-bold text-body truncate ${
-                  entry.isYou ? 'text-lighthouse-700 dark:text-lighthouse-300' : 'text-ink-900 dark:text-ink-100'
-                }`}>
-                  {entry.name}
-                  {entry.isYou && <span className="text-caption text-lighthouse-500 ml-1">(you)</span>}
-                </p>
-              </div>
+              <p className={`font-display font-bold text-body truncate ${
+                entry.isYou ? 'text-lighthouse-700 dark:text-lighthouse-300' : 'text-ink-900 dark:text-ink-100'
+              }`}>
+                {entry.name}
+                {entry.isYou && <span className="text-caption text-lighthouse-500 ml-1">(you)</span>}
+              </p>
               <p className="text-[11px] text-ink-300">{entry.flag} {entry.country}</p>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <p className="font-display font-bold text-body text-ink-900 dark:text-ink-100">{entry.score}</p>
-              <p className="text-[11px] text-coral-500">{'\u{1F525}'} {entry.streak}d</p>
+              <p className="text-[11px] text-coral-500 font-semibold flex items-center justify-end gap-0.5">
+                <span aria-hidden>{'\u{1F525}'}</span> {entry.streak}
+              </p>
             </div>
           </motion.div>
         ))}
@@ -484,94 +668,136 @@ function GroupsView({
   onJoinGroup: () => void;
   onSelectGroup: (g: ChallengeGroup) => void;
 }) {
+  const { joinedGroupId, joinGroup, customGroups, user } = useStore();
+  const inAGroup = Boolean(joinedGroupId);
+  const allGroups = [...customGroups, ...challengeGroups];
+
   return (
     <div className="px-6 mt-5">
-      {/* Action buttons */}
+      {/* Action buttons — locked once you're already in a group */}
       <div className="flex gap-3">
         <motion.button
-          className="flex-1 py-3.5 rounded-capsule hero-glow text-white font-display font-bold text-caption shadow-soft flex items-center justify-center gap-2"
-          whileTap={{ scale: 0.97 }}
+          className={`flex-1 py-3.5 rounded-capsule font-display font-bold text-caption flex items-center justify-center gap-2 ${
+            inAGroup
+              ? 'bg-ink-100 dark:bg-night-700 text-ink-300 pointer-events-none'
+              : 'hero-glow text-white shadow-soft'
+          }`}
+          whileTap={inAGroup ? undefined : { scale: 0.97 }}
           onClick={onCreateGroup}
+          disabled={inAGroup}
+          aria-disabled={inAGroup}
         >
           <Plus size={16} />
           {t('challenges.create_group')}
         </motion.button>
         <motion.button
-          className="flex-1 py-3.5 rounded-capsule glass-strong text-ink-900 dark:text-ink-100 font-display font-bold text-caption flex items-center justify-center gap-2"
-          whileTap={{ scale: 0.97 }}
+          className={`flex-1 py-3.5 rounded-capsule font-display font-bold text-caption flex items-center justify-center gap-2 ${
+            inAGroup
+              ? 'bg-ink-100 dark:bg-night-700 text-ink-300 pointer-events-none'
+              : 'glass-strong text-ink-900 dark:text-ink-100'
+          }`}
+          whileTap={inAGroup ? undefined : { scale: 0.97 }}
           onClick={onJoinGroup}
+          disabled={inAGroup}
+          aria-disabled={inAGroup}
         >
           <Users size={16} />
           {t('challenges.join_group')}
         </motion.button>
       </div>
 
-      {/* My Groups */}
+      {inAGroup && (
+        <p className="mt-3 text-caption text-ink-300 text-center">
+          Leave your current group before joining or creating another.
+        </p>
+      )}
+
+      {/* Groups list */}
       <h3 className="mt-6 font-display font-bold text-title text-ink-900 dark:text-ink-100">
-        My Groups
+        {inAGroup ? 'Your Group' : 'Groups'}
       </h3>
       <div className="mt-3 space-y-3">
-        {challengeGroups.map((group, i) => (
-          <motion.button
-            key={group.id}
-            className="relative w-full text-left p-4 rounded-card glass-strong overflow-hidden"
-            whileTap={{ scale: 0.97 }}
-            onClick={() => onSelectGroup(group)}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-          >
-            <div
-              className="absolute -top-12 -right-12 w-36 h-36 rounded-full pointer-events-none"
-              style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.45), transparent 70%)', filter: 'blur(24px)' }}
-            />
-            <div className="relative flex items-center justify-between">
-              <div>
-                <h4 className="font-display font-bold text-body text-ink-900 dark:text-ink-100">
-                  {group.name}
-                </h4>
-                <p className="text-caption text-ink-300 mt-0.5">
-                  {group.members.length} {t('challenges.members')}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="font-display font-bold text-body text-lighthouse-600 dark:text-lighthouse-300">
-                  {group.totalScore}
-                </p>
-                <p className="text-[11px] text-ink-300">{t('challenges.group_score')}</p>
-              </div>
-            </div>
-
-            {/* Member avatars */}
-            <div className="relative flex items-center mt-3 -space-x-2">
-              {group.members.slice(0, 5).map((m, j) => (
-                <div
-                  key={j}
-                  className="w-8 h-8 rounded-full bg-gradient-to-br from-lighthouse-300 to-coral-300 flex items-center justify-center text-[11px] font-bold text-white ring-2 ring-paper dark:ring-night-800"
+        {allGroups.map((group, i) => {
+          const isJoined = joinedGroupId === group.id;
+          return (
+            <motion.div
+              key={group.id}
+              className={`relative w-full text-left p-4 rounded-card overflow-hidden ${
+                isJoined ? 'glass-tint-warm ring-2 ring-lighthouse-400/50' : 'glass-strong'
+              }`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <div
+                className="absolute -top-12 -right-12 w-36 h-36 rounded-full pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.45), transparent 70%)', filter: 'blur(24px)' }}
+              />
+              <div className="relative flex items-start justify-between gap-3">
+                <button
+                  type="button"
+                  className="flex-1 min-w-0 text-left"
+                  onClick={() => onSelectGroup(group)}
                 >
-                  {m.avatar}
-                </div>
-              ))}
-              {group.members.length > 5 && (
-                <div className="w-8 h-8 rounded-full bg-ink-100 dark:bg-night-700 flex items-center justify-center text-[11px] font-bold text-ink-600 dark:text-ink-300 ring-2 ring-paper dark:ring-night-800">
-                  +{group.members.length - 5}
-                </div>
-              )}
-              <ArrowRight size={16} className="text-ink-300 ml-auto" />
-            </div>
-          </motion.button>
-        ))}
-      </div>
+                  <h4 className="font-display font-bold text-body text-ink-900 dark:text-ink-100">
+                    {group.name}
+                  </h4>
+                  <p className="text-caption text-ink-300 mt-0.5">
+                    {group.members.length} {t('challenges.members')}
+                    {isJoined ? ' · You\'re in' : ''}
+                  </p>
+                </button>
+                {isJoined ? (
+                  <span className="shrink-0 px-3 py-1.5 rounded-capsule text-micro font-bold uppercase tracking-wider bg-mint-500/15 text-mint-700 dark:text-mint-300">
+                    Joined
+                  </span>
+                ) : (
+                  <motion.button
+                    type="button"
+                    className={`shrink-0 px-4 py-1.5 rounded-capsule text-caption font-bold ${
+                      inAGroup
+                        ? 'bg-ink-100 dark:bg-night-700 text-ink-300 pointer-events-none'
+                        : 'hero-glow text-white shadow-soft'
+                    }`}
+                    whileTap={inAGroup ? undefined : { scale: 0.96 }}
+                    disabled={inAGroup}
+                    onClick={() => joinGroup(group.id)}
+                  >
+                    Join
+                  </motion.button>
+                )}
+              </div>
 
-      {/* Empty state hint */}
-      {challengeGroups.length === 0 && (
-        <div className="mt-8 text-center">
-          <Lumi pose="thinking" size={64} animate={false} />
-          <p className="mt-3 text-body text-ink-300">
-            Create a group or join one with a friend's invite code to compete together!
-          </p>
-        </div>
-      )}
+              {/* Member avatars */}
+              <button
+                type="button"
+                className="relative flex items-center mt-3 -space-x-2 w-full"
+                onClick={() => onSelectGroup(group)}
+              >
+                {group.members.slice(0, 5).map((m, j) => (
+                  <div
+                    key={j}
+                    className="w-8 h-8 rounded-full bg-gradient-to-br from-lighthouse-300 to-coral-300 flex items-center justify-center text-[11px] font-bold text-white ring-2 ring-paper dark:ring-night-800"
+                  >
+                    {m.avatar}
+                  </div>
+                ))}
+                {isJoined && (
+                  <div className="w-8 h-8 rounded-full hero-glow flex items-center justify-center text-[11px] font-bold text-white ring-2 ring-paper dark:ring-night-800">
+                    {(user.name?.[0] || 'Y').toUpperCase()}
+                  </div>
+                )}
+                {group.members.length > 5 && (
+                  <div className="w-8 h-8 rounded-full bg-ink-100 dark:bg-night-700 flex items-center justify-center text-[11px] font-bold text-ink-600 dark:text-ink-300 ring-2 ring-paper dark:ring-night-800">
+                    +{group.members.length - 5}
+                  </div>
+                )}
+                <ArrowRight size={16} className="text-ink-300 ml-auto" />
+              </button>
+            </motion.div>
+          );
+        })}
+      </div>
 
       <div className="h-4" />
     </div>
@@ -580,20 +806,32 @@ function GroupsView({
 
 /* =========== Create Group Sheet =========== */
 function CreateGroupSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { joinedGroupId, createGroup } = useStore();
   const [name, setName] = useState('');
   const [created, setCreated] = useState(false);
   const [code, setCode] = useState('');
+  const [error, setError] = useState('');
 
   const handleCreate = () => {
-    const newCode = name.toUpperCase().replace(/\s+/g, '').slice(0, 4) + Math.floor(Math.random() * 90 + 10);
-    setCode(newCode);
+    if (joinedGroupId) {
+      setError('Leave your current group before creating another.');
+      return;
+    }
+    const group = createGroup(name);
+    if (!group) {
+      setError('Couldn\'t create the group. Try a different name.');
+      return;
+    }
+    setCode(group.code);
     setCreated(true);
+    setError('');
   };
 
   const handleClose = () => {
     setCreated(false);
     setName('');
     setCode('');
+    setError('');
     onClose();
   };
 
@@ -606,21 +844,22 @@ function CreateGroupSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setError(''); }}
               placeholder="e.g. Dhaka Dreamers"
               className="mt-2 w-full py-3 px-4 rounded-sm bg-ink-100 dark:bg-night-700 text-body text-ink-900 dark:text-ink-100 placeholder:text-ink-300 focus-ring"
             />
           </div>
           <p className="text-caption text-ink-300">
-            Your friends can join using the invite code you'll get after creating the group.
+            Your friends can join using the invite code you'll get after creating the group. You can only be in one group at a time.
           </p>
+          {error && <p className="text-caption text-coral-500 font-medium">{error}</p>}
           <motion.button
             className={`w-full py-4 rounded-capsule font-display font-bold text-title shadow-medium ${
-              name.trim()
+              name.trim() && !joinedGroupId
                 ? 'hero-glow text-white'
                 : 'bg-ink-100 dark:bg-night-700 text-ink-300 pointer-events-none'
             }`}
-            whileTap={name.trim() ? { scale: 0.97 } : undefined}
+            whileTap={name.trim() && !joinedGroupId ? { scale: 0.97 } : undefined}
             onClick={handleCreate}
           >
             Create Group
@@ -669,18 +908,29 @@ function CreateGroupSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
 /* =========== Join Group Sheet =========== */
 function JoinGroupSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { joinedGroupId, joinGroup, customGroups } = useStore();
   const [code, setCode] = useState('');
   const [joined, setJoined] = useState(false);
   const [error, setError] = useState('');
 
   const handleJoin = () => {
-    const match = challengeGroups.find((g) => g.code === code.toUpperCase());
-    if (match) {
-      setJoined(true);
-      setError('');
-    } else {
-      setError('Group not found. Check the code and try again.');
+    if (joinedGroupId) {
+      setError('Leave your current group before joining another.');
+      return;
     }
+    const match = [...customGroups, ...challengeGroups].find(
+      (g) => g.code === code.toUpperCase()
+    );
+    if (!match) {
+      setError('Group not found. Check the code and try again.');
+      return;
+    }
+    if (!joinGroup(match.id)) {
+      setError('Leave your current group before joining another.');
+      return;
+    }
+    setJoined(true);
+    setError('');
   };
 
   const handleClose = () => {
@@ -709,15 +959,15 @@ function JoinGroupSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             <p className="text-caption text-coral-500 font-medium">{error}</p>
           )}
           <p className="text-caption text-ink-300">
-            Ask your friend for their group's invite code, then enter it above to join their challenge group.
+            Ask your friend for their group's invite code. You can only be in one group at a time.
           </p>
           <motion.button
             className={`w-full py-4 rounded-capsule font-display font-bold text-title shadow-medium ${
-              code.trim().length >= 4
+              code.trim().length >= 4 && !joinedGroupId
                 ? 'hero-glow text-white'
                 : 'bg-ink-100 dark:bg-night-700 text-ink-300 pointer-events-none'
             }`}
-            whileTap={code.trim().length >= 4 ? { scale: 0.97 } : undefined}
+            whileTap={code.trim().length >= 4 && !joinedGroupId ? { scale: 0.97 } : undefined}
             onClick={handleJoin}
           >
             Join Group
@@ -751,9 +1001,12 @@ function JoinGroupSheet({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
 /* =========== Group Detail Sheet =========== */
 function GroupDetailSheet({ group, onClose }: { group: ChallengeGroup | null; onClose: () => void }) {
+  const { joinedGroupId, leaveGroup, joinGroup } = useStore();
   if (!group) return null;
 
   const sorted = [...group.members].sort((a, b) => b.score - a.score);
+  const isJoined = joinedGroupId === group.id;
+  const inOtherGroup = Boolean(joinedGroupId) && !isJoined;
 
   return (
     <BottomSheet isOpen={!!group} onClose={onClose} title={group.name}>
@@ -820,6 +1073,34 @@ function GroupDetailSheet({ group, onClose }: { group: ChallengeGroup | null; on
             </div>
           ))}
         </div>
+
+        {isJoined ? (
+          <motion.button
+            className="w-full py-4 rounded-capsule bg-coral-500/15 text-coral-600 dark:text-coral-300 font-display font-bold text-title"
+            whileTap={{ scale: 0.97 }}
+            onClick={() => {
+              leaveGroup();
+              onClose();
+            }}
+          >
+            Leave This Group
+          </motion.button>
+        ) : (
+          <motion.button
+            className={`w-full py-4 rounded-capsule font-display font-bold text-title shadow-medium ${
+              inOtherGroup
+                ? 'bg-ink-100 dark:bg-night-700 text-ink-300 pointer-events-none'
+                : 'hero-glow text-white'
+            }`}
+            whileTap={inOtherGroup ? undefined : { scale: 0.97 }}
+            disabled={inOtherGroup}
+            onClick={() => {
+              if (joinGroup(group.id)) onClose();
+            }}
+          >
+            {inOtherGroup ? 'Leave your group first' : 'Join This Group'}
+          </motion.button>
+        )}
       </div>
     </BottomSheet>
   );

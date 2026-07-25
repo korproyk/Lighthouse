@@ -19,7 +19,14 @@ export interface Challenge {
   timeEstimate: string;
   points: number;
   completed?: boolean;
+  // Required quests are pinned above the list and ignore the pack/difficulty
+  // filters. `tracker` marks a quest that is measured by the app instead of
+  // being self-reported with a Done button.
+  required?: boolean;
+  tracker?: 'sleep';
 }
+
+export const SLEEP_GOAL_HOURS = 8;
 
 export interface CommunityWin {
   id: string;
@@ -94,6 +101,19 @@ export const checkIns: CheckIn[] = [
 ];
 
 export const challenges: Challenge[] = [
+  {
+    id: 'core-sleep',
+    title: 'Sleep 8 Hours',
+    description: 'Everyone starts here. Time a full night of rest.',
+    instructions: 'Tap Start sleep when you put your phone down for the night. The timer keeps counting while the app is closed, so you can leave your phone alone until morning. Tap I\'m awake when you get up and the night is recorded. Reach 8 hours to complete it.',
+    difficulty: 'easy',
+    pack: 'worldwide',
+    flag: '\u{1F31B}',
+    timeEstimate: '8 h',
+    points: 40,
+    required: true,
+    tracker: 'sleep',
+  },
   {
     id: 'bd-1',
     title: 'Tea with Someone New',
