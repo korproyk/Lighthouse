@@ -4,7 +4,7 @@ import L from 'leaflet';
 import {
   Heart, MapPin, Calendar, Send, GraduationCap, Clock, Users, ChefHat, Hammer, Home as HomeIcon,
   Coins, Trees, Wrench, HeartHandshake, Play, Plus, Minus, Loader2, ShieldCheck,
-  Search, SlidersHorizontal, Crosshair, Smile, Droplet,
+  Search, SlidersHorizontal, Crosshair, Smile, WifiOff,
 } from 'lucide-react';
 import { t } from '../lib/i18n';
 import {
@@ -39,25 +39,13 @@ export default function Community() {
       <div className="noise-overlay" />
 
       <div className="relative px-6 pt-4" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
-              Together, quietly
-            </p>
-            <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
-              {t('nav.community')}
-            </h1>
-          </div>
-          <div className="relative shrink-0 w-14 h-14 rounded-full glass-strong flex items-center justify-center shadow-soft">
-            <div
-              className="absolute inset-0 rounded-full pointer-events-none"
-              style={{ background: 'radial-gradient(circle at 30% 25%, rgba(255,178,122,0.5), transparent 65%)' }}
-            />
-            <Users size={22} className="relative text-lighthouse-600" strokeWidth={2.25} />
-            <span className="absolute -top-0.5 -right-0.5 w-6 h-6 rounded-full hero-glow flex items-center justify-center shadow-soft">
-              <Heart size={11} className="text-white" fill="white" />
-            </span>
-          </div>
+        <div>
+          <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
+            Together, quietly
+          </p>
+          <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
+            {t('nav.community')}
+          </h1>
         </div>
 
         {/* Sub-tabs — glass capsule */}
@@ -477,23 +465,23 @@ type MapFilterKey = 'all' | 'checkins' | PlaceCategory;
 const mapFilters: { key: MapFilterKey; label: string; icon?: React.ElementType; color: string }[] = [
   { key: 'all', label: 'All', color: '#FF7A45' },
   { key: 'checkins', label: 'Check-ins', icon: Smile, color: '#FF8A3D' },
-  { key: 'hospital', label: 'Hospitals', icon: Plus, color: '#3B82F6' },
-  { key: 'blood', label: 'Blood', icon: Droplet, color: '#FF4D6A' },
-  { key: 'safety', label: 'Safety', icon: ShieldCheck, color: '#34C77B' },
-  { key: 'support', label: 'Support', icon: Users, color: '#8E7CC3' },
+  { key: 'screenfree', label: 'Offline', icon: WifiOff, color: '#3B82F6' },
+  { key: 'outdoors', label: 'Outdoors', icon: Trees, color: '#34C77B' },
+  { key: 'skills', label: 'Skills', icon: GraduationCap, color: '#8E7CC3' },
+  { key: 'support', label: 'Support', icon: HeartHandshake, color: '#FF4D6A' },
 ];
 
 const placeColors: Record<PlaceCategory, string> = {
-  hospital: '#3B82F6',
-  blood: '#FF4D6A',
-  safety: '#34C77B',
-  support: '#8E7CC3',
+  screenfree: '#3B82F6',
+  outdoors: '#34C77B',
+  skills: '#8E7CC3',
+  support: '#FF4D6A',
 };
 
 const placeLabels: Record<PlaceCategory, string> = {
-  hospital: 'Hospital',
-  blood: 'Blood donation',
-  safety: 'Safe place',
+  screenfree: 'Screen-free spot',
+  outdoors: 'Outdoors',
+  skills: 'Skill workshop',
   support: 'Support group',
 };
 
@@ -502,12 +490,16 @@ const pinGlyphs: Record<'checkin' | PlaceCategory, string> = {
   checkin:
     '<circle cx="12" cy="12" r="8.4"/><path d="M8.4 14.2s1.4 2.1 3.6 2.1 3.6-2.1 3.6-2.1"/>' +
     '<path d="M9.3 9.6h.01"/><path d="M14.7 9.6h.01"/>',
-  hospital: '<path d="M12 5v14M5 12h14"/>',
-  blood: '<path d="M12 3.4s5.6 6.2 5.6 9.4a5.6 5.6 0 1 1-11.2 0C6.4 9.6 12 3.4 12 3.4z" fill="#FFFFFF" stroke="none"/>',
-  safety: '<path d="M12 3.4l7 2.8v4.9c0 4.2-2.9 7.3-7 8.5-4.1-1.2-7-4.3-7-8.5V6.2l7-2.8z" fill="#FFFFFF" stroke="none"/>',
+  screenfree: '<rect x="8.4" y="3.6" width="7.2" height="16.8" rx="2.2"/><path d="M4.4 4.2l15.2 15.6"/>',
+  outdoors:
+    '<path d="M12 3.2l4.6 6.6H7.4z" fill="#FFFFFF" stroke="none"/>' +
+    '<path d="M12 8.2l6 8.2H6z" fill="#FFFFFF" stroke="none"/><path d="M12 16.4v4.2"/>',
+  skills:
+    '<path d="M2.8 9.2L12 5l9.2 4.2L12 13.4z" fill="#FFFFFF" stroke="none"/>' +
+    '<path d="M7 11.6v4.2c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-4.2"/>',
   support:
-    '<circle cx="9.4" cy="10" r="2.5"/><circle cx="15.6" cy="10.4" r="2"/>' +
-    '<path d="M5.2 17.8c0-2.3 1.9-3.9 4.2-3.9s4.2 1.6 4.2 3.9"/><path d="M15.2 14.2c1.9.2 3.3 1.6 3.3 3.4"/>',
+    '<path d="M12 20.2s-7.2-4.5-7.2-9.4a3.9 3.9 0 0 1 7.2-2.1 3.9 3.9 0 0 1 7.2 2.1c0 4.9-7.2 9.4-7.2 9.4z" ' +
+    'fill="#FFFFFF" stroke="none"/>',
 };
 
 const radiusOptions = [
@@ -639,10 +631,10 @@ function MapView() {
       icon: Smile,
       color: '#FF8A3D',
     },
-    { key: 'hospital' as MapFilterKey, label: 'Hospitals', value: String(places.filter((p) => p.category === 'hospital').length), icon: Plus, color: '#3B82F6' },
-    { key: 'blood' as MapFilterKey, label: 'Blood', value: String(places.filter((p) => p.category === 'blood').length), icon: Droplet, color: '#FF4D6A' },
-    { key: 'safety' as MapFilterKey, label: 'Safety', value: String(places.filter((p) => p.category === 'safety').length), icon: ShieldCheck, color: '#34C77B' },
-    { key: 'support' as MapFilterKey, label: 'Support', value: String(places.filter((p) => p.category === 'support').length), icon: Users, color: '#8E7CC3' },
+    { key: 'screenfree' as MapFilterKey, label: 'Offline', value: String(places.filter((p) => p.category === 'screenfree').length), icon: WifiOff, color: '#3B82F6' },
+    { key: 'outdoors' as MapFilterKey, label: 'Outdoors', value: String(places.filter((p) => p.category === 'outdoors').length), icon: Trees, color: '#34C77B' },
+    { key: 'skills' as MapFilterKey, label: 'Skills', value: String(places.filter((p) => p.category === 'skills').length), icon: GraduationCap, color: '#8E7CC3' },
+    { key: 'support' as MapFilterKey, label: 'Support', value: String(places.filter((p) => p.category === 'support').length), icon: HeartHandshake, color: '#FF4D6A' },
   ];
 
   // Init map once
@@ -794,7 +786,7 @@ function MapView() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={'Search nearby places\u2026'}
+            placeholder={'Search offline spots nearby\u2026'}
             className="flex-1 min-w-0 bg-transparent py-3 text-caption text-ink-900 dark:text-ink-100 placeholder:text-ink-300 focus:outline-none"
           />
           <span className="w-px h-5 bg-ink-900/10 dark:bg-white/10 shrink-0" />

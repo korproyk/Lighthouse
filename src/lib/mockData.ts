@@ -281,7 +281,9 @@ export const healthClusters: HealthCluster[] = [
   { id: 'h10', lat: 35.8714, lng: 128.6014, city: 'Daegu', symptom: 'FOMO', intensity: 0.4, count: 62 },
 ];
 
-export type PlaceCategory = 'hospital' | 'blood' | 'safety' | 'support';
+// Places that help you put the phone down: quiet screen-free rooms, outdoor
+// spots, hands-on skill workshops, and peer support for screen struggles.
+export type PlaceCategory = 'screenfree' | 'outdoors' | 'skills' | 'support';
 
 export interface NearbyPlace {
   id: string;
@@ -293,17 +295,18 @@ export interface NearbyPlace {
 }
 
 export const nearbyPlaces: NearbyPlace[] = [
-  { id: 'p1', name: 'Seoul National University Hospital', detail: 'Open 24h \u00b7 Youth clinic', category: 'hospital', lat: 37.5799, lng: 126.9995 },
-  { id: 'p2', name: 'Severance Hospital', detail: 'Open 24h \u00b7 Emergency care', category: 'hospital', lat: 37.5623, lng: 126.9410 },
-  { id: 'p3', name: 'Red Cross Blood Center', detail: 'Donations 10:00\u201318:00', category: 'blood', lat: 37.5735, lng: 126.9850 },
-  { id: 'p4', name: 'Gangnam Blood Donation House', detail: 'Walk-ins welcome', category: 'blood', lat: 37.5045, lng: 127.0245 },
-  { id: 'p5', name: 'Mapo Youth Safe Zone', detail: 'Safe space \u00b7 Staff on site', category: 'safety', lat: 37.5540, lng: 126.9410 },
-  { id: 'p6', name: 'Jongno Youth Center', detail: 'Quiet rooms \u00b7 Free wifi-free zone', category: 'safety', lat: 37.5700, lng: 126.9910 },
-  { id: 'p7', name: 'Yongsan Library Safe Corner', detail: 'Phone-free study area', category: 'safety', lat: 37.5385, lng: 126.9660 },
-  { id: 'p8', name: 'Hongdae Teen Support Circle', detail: 'Meets Saturdays \u00b7 Anonymous', category: 'support', lat: 37.5560, lng: 126.9240 },
-  { id: 'p9', name: 'Euljiro Digital Detox Meetup', detail: 'Weekly \u00b7 Screen-free hangout', category: 'support', lat: 37.5665, lng: 127.0000 },
-  { id: 'p10', name: 'Yeouido Counseling Center', detail: 'Free youth counseling', category: 'support', lat: 37.5215, lng: 126.9245 },
-  { id: 'p11', name: 'Seongsu Peer Support Group', detail: 'Drop in \u00b7 No sign-up', category: 'support', lat: 37.5445, lng: 127.0560 },
+  { id: 'p1', name: 'Jongno Quiet Reading Room', detail: 'Phones stay in the locker', category: 'screenfree', lat: 37.5700, lng: 126.9910 },
+  { id: 'p2', name: 'Yongsan Library Focus Floor', detail: 'No-screen study desks', category: 'screenfree', lat: 37.5385, lng: 126.9660 },
+  { id: 'p3', name: 'Euljiro Offline Caf\u00e9', detail: 'Deliberately no wifi', category: 'screenfree', lat: 37.5665, lng: 127.0000 },
+  { id: 'p4', name: 'Hangang Park, Ttukseom', detail: 'River walk \u00b7 Bike path', category: 'outdoors', lat: 37.5310, lng: 127.0665 },
+  { id: 'p5', name: 'Namsan Trail Entrance', detail: '20 min uphill \u00b7 Big view', category: 'outdoors', lat: 37.5512, lng: 126.9882 },
+  { id: 'p6', name: 'Mapo Sports Court', detail: 'Pickup basketball, evenings', category: 'outdoors', lat: 37.5540, lng: 126.9410 },
+  { id: 'p7', name: 'Mapo Community Kitchen', detail: 'Weekend cooking classes', category: 'skills', lat: 37.5575, lng: 126.9255 },
+  { id: 'p8', name: 'Seongsu Repair Workshop', detail: 'Fix your own things', category: 'skills', lat: 37.5445, lng: 127.0560 },
+  { id: 'p9', name: 'Jongno Craft Studio', detail: 'Woodwork \u00b7 Knots \u00b7 Sewing', category: 'skills', lat: 37.5748, lng: 126.9850 },
+  { id: 'p10', name: 'Hongdae Teen Support Circle', detail: 'Meets Saturdays \u00b7 Anonymous', category: 'support', lat: 37.5560, lng: 126.9240 },
+  { id: 'p11', name: 'Yeouido Counselling Centre', detail: 'Free youth counselling', category: 'support', lat: 37.5215, lng: 126.9245 },
+  { id: 'p12', name: 'Gangnam Screen-Balance Group', detail: 'Weekly peer group \u00b7 Drop in', category: 'support', lat: 37.5045, lng: 127.0245 },
 ];
 
 export const accountabilityPartner = {
