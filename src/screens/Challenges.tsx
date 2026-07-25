@@ -23,7 +23,7 @@ const podiumBadges: Record<1 | 2 | 3, { src: string; alt: string; bar: string }>
   },
   3: {
     src: '/images/podium-3.png',
-    alt: '3rd place bronze flame',
+    alt: '3rd place flame',
     bar: 'bg-[#CD7F32]',
   },
 };
