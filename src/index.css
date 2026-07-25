@@ -502,3 +502,70 @@
     border-color: rgba(163, 160, 224, 0.12);
   }
 }
+
+/* Leaflet marker overrides — strip the default white box around divIcons */
+.leaflet-container .map-pin,
+.leaflet-container .map-you {
+  background: transparent;
+  border: none;
+}
+
+.leaflet-container .map-pin svg {
+  filter: drop-shadow(0 5px 10px rgba(15, 23, 42, 0.3));
+}
+
+.leaflet-container .map-you {
+  position: relative;
+}
+
+.map-you-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 78px;
+  height: 78px;
+  margin: -39px 0 0 -39px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(47, 107, 255, 0.3), rgba(47, 107, 255, 0.02) 70%);
+  animation: mapYouPulse 2.8s ease-in-out infinite;
+}
+
+.map-you-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 9999px;
+  background: #2F6BFF;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 4px 10px rgba(47, 107, 255, 0.45);
+}
+
+.map-you-label {
+  position: absolute;
+  left: 50%;
+  top: -28px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #2F6BFF;
+  white-space: nowrap;
+}
+
+@keyframes mapYouPulse {
+  0%, 100% { transform: scale(0.85); opacity: 0.75; }
+  50% { transform: scale(1.12); opacity: 0.35; }
+}
+
+.leaflet-container .leaflet-popup-content-wrapper {
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+}
+
+.leaflet-container .leaflet-control-attribution {
+  font-size: 9px;
+  background: rgba(255, 255, 255, 0.7);
+}

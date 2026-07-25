@@ -1,11 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import L from 'leaflet';
-import { Heart, MapPin, Calendar, Send, GraduationCap, Clock, Users, ChefHat, Hammer, Home as HomeIcon, Coins, Trees, Wrench, HeartHandshake, Play, Plus, Loader2, ShieldCheck } from 'lucide-react';
+import {
+  Heart, MapPin, Calendar, Send, GraduationCap, Clock, Users, ChefHat, Hammer, Home as HomeIcon,
+  Coins, Trees, Wrench, HeartHandshake, Play, Plus, Minus, Loader2, ShieldCheck,
+  Search, SlidersHorizontal, Crosshair, Smile, Droplet,
+} from 'lucide-react';
 import { t } from '../lib/i18n';
-import { communityWins, accountabilityPartner, volunteerEvents, healthClusters, learningSkills, type LearningSkill } from '../lib/mockData';
+import {
+  communityWins, accountabilityPartner, volunteerEvents, healthClusters, learningSkills,
+  nearbyPlaces, type LearningSkill, type PlaceCategory,
+} from '../lib/mockData';
 import { api, type HealthReportRow } from '../lib/supabase';
-import Lumi from '../components/Lumi';
 import BottomSheet from '../components/BottomSheet';
 
 function timeAgo(ts: string): string {
@@ -17,8 +23,6 @@ function timeAgo(ts: string): string {
   return `${days}d ago`;
 }
 
-const symptoms = ['All', 'Doomscrolling', 'FOMO', 'Screen Fatigue', 'Sleep Loss'];
-
 const tabs = [
   { key: 'board' as const, label: 'Board' },
   { key: 'learn' as const, label: 'Learn' },
@@ -28,11 +32,6 @@ const tabs = [
 export default function Community() {
   const [subTab, setSubTab] = useState<'board' | 'learn' | 'map'>('board');
   const [showShareSheet, setShowShareSheet] = useState(false);
-  const [selectedSymptom, setSelectedSymptom] = useState('All');
-
-  const filteredClusters = selectedSymptom === 'All'
-    ? healthClusters
-    : healthClusters.filter((c) => c.symptom === selectedSymptom);
 
   return (
     <div className="screen-scroll">
@@ -40,12 +39,26 @@ export default function Community() {
       <div className="noise-overlay" />
 
       <div className="relative px-6 pt-4" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
-        <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
-          Together, quietly
-        </p>
-        <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
-          {t('nav.community')}
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
+              Together, quietly
+            </p>
+            <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
+              {t('nav.community')}
+            </h1>
+          </div>
+          <div className="relative shrink-0 w-14 h-14 rounded-full glass-strong flex items-center justify-center shadow-soft">
+            <div
+              className="absolute inset-0 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle at 30% 25%, rgba(255,178,122,0.5), transparent 65%)' }}
+            />
+            <Users size={22} className="relative text-lighthouse-600" strokeWidth={2.25} />
+            <span className="absolute -top-0.5 -right-0.5 w-6 h-6 rounded-full hero-glow flex items-center justify-center shadow-soft">
+              <Heart size={11} className="text-white" fill="white" />
+            </span>
+          </div>
+        </div>
 
         {/* Sub-tabs — glass capsule */}
         <div className="mt-4 p-1 rounded-capsule glass flex gap-1">
@@ -68,13 +81,7 @@ export default function Community() {
 
       {subTab === 'board' && <BoardView onShare={() => setShowShareSheet(true)} />}
       {subTab === 'learn' && <LearnView />}
-      {subTab === 'map' && (
-        <MapView
-          clusters={filteredClusters}
-          selectedSymptom={selectedSymptom}
-          onSymptomChange={setSelectedSymptom}
-        />
-      )}
+      {subTab === 'map' && <MapView />}
 
       <BottomSheet
         isOpen={showShareSheet}
@@ -465,18 +472,96 @@ const seoulNeighborhoods = [
   { name: 'Dongdaemun-gu, Seoul', lat: 37.5744, lng: 127.0396 },
 ];
 
-function MapView({
-  clusters,
-  selectedSymptom,
-  onSymptomChange,
-}: {
-  clusters: typeof healthClusters;
-  selectedSymptom: string;
-  onSymptomChange: (s: string) => void;
-}) {
+type MapFilterKey = 'all' | 'checkins' | PlaceCategory;
+
+const mapFilters: { key: MapFilterKey; label: string; icon?: React.ElementType; color: string }[] = [
+  { key: 'all', label: 'All', color: '#FF7A45' },
+  { key: 'checkins', label: 'Check-ins', icon: Smile, color: '#FF8A3D' },
+  { key: 'hospital', label: 'Hospitals', icon: Plus, color: '#3B82F6' },
+  { key: 'blood', label: 'Blood', icon: Droplet, color: '#FF4D6A' },
+  { key: 'safety', label: 'Safety', icon: ShieldCheck, color: '#34C77B' },
+  { key: 'support', label: 'Support', icon: Users, color: '#8E7CC3' },
+];
+
+const placeColors: Record<PlaceCategory, string> = {
+  hospital: '#3B82F6',
+  blood: '#FF4D6A',
+  safety: '#34C77B',
+  support: '#8E7CC3',
+};
+
+const placeLabels: Record<PlaceCategory, string> = {
+  hospital: 'Hospital',
+  blood: 'Blood donation',
+  safety: 'Safe place',
+  support: 'Support group',
+};
+
+// Glyphs are drawn in a 24x24 box and scaled down inside the pin head.
+const pinGlyphs: Record<'checkin' | PlaceCategory, string> = {
+  checkin:
+    '<circle cx="12" cy="12" r="8.4"/><path d="M8.4 14.2s1.4 2.1 3.6 2.1 3.6-2.1 3.6-2.1"/>' +
+    '<path d="M9.3 9.6h.01"/><path d="M14.7 9.6h.01"/>',
+  hospital: '<path d="M12 5v14M5 12h14"/>',
+  blood: '<path d="M12 3.4s5.6 6.2 5.6 9.4a5.6 5.6 0 1 1-11.2 0C6.4 9.6 12 3.4 12 3.4z" fill="#FFFFFF" stroke="none"/>',
+  safety: '<path d="M12 3.4l7 2.8v4.9c0 4.2-2.9 7.3-7 8.5-4.1-1.2-7-4.3-7-8.5V6.2l7-2.8z" fill="#FFFFFF" stroke="none"/>',
+  support:
+    '<circle cx="9.4" cy="10" r="2.5"/><circle cx="15.6" cy="10.4" r="2"/>' +
+    '<path d="M5.2 17.8c0-2.3 1.9-3.9 4.2-3.9s4.2 1.6 4.2 3.9"/><path d="M15.2 14.2c1.9.2 3.3 1.6 3.3 3.4"/>',
+};
+
+const radiusOptions = [
+  { km: 0, label: 'Anywhere' },
+  { km: 2, label: 'Within 2 km' },
+  { km: 5, label: 'Within 5 km' },
+  { km: 10, label: 'Within 10 km' },
+];
+
+// No geolocation in this build — the demo data is centred on Seoul. Kept a
+// little off the Jung-gu cluster so the "You" dot never hides under a pin.
+const youLocation = { lat: 37.5588, lng: 126.9702, name: 'Jung-gu, Seoul' };
+
+function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+function withinKm(lat: number, lng: number, km: number): boolean {
+  return km === 0 || distanceKm(youLocation.lat, youLocation.lng, lat, lng) <= km;
+}
+
+function compactNumber(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+function makePinIcon(color: string, glyph: string): L.DivIcon {
+  return L.divIcon({
+    className: 'map-pin',
+    html:
+      '<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">' +
+      `<path d="M15 1.5C7.8 1.5 2 7.3 2 14.5c0 8.9 11.4 20.4 12.3 21.3.4.4 1 .4 1.4 0C16.6 34.9 28 23.4 28 14.5 28 7.3 22.2 1.5 15 1.5z" fill="${color}" stroke="#FFFFFF" stroke-width="2.4"/>` +
+      '<g transform="translate(6.6 6.1) scale(0.7)" fill="none" stroke="#FFFFFF" stroke-width="2.2" ' +
+      `stroke-linecap="round" stroke-linejoin="round">${glyph}</g>` +
+      '</svg>',
+    iconSize: [30, 40],
+    iconAnchor: [15, 39],
+    popupAnchor: [0, -34],
+  });
+}
+
+function MapView() {
   const [reports, setReports] = useState<HealthReportRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showReportSheet, setShowReportSheet] = useState(false);
+  const [showCheckInSheet, setShowCheckInSheet] = useState(false);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [filter, setFilter] = useState<MapFilterKey>('all');
+  const [query, setQuery] = useState('');
+  const [radiusKm, setRadiusKm] = useState(0);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -489,15 +574,16 @@ function MapView({
     })();
   }, []);
 
-  const combined = useMemo(() => {
-    const baseline = clusters.map((c) => ({
+  const search = query.trim().toLowerCase();
+
+  const checkIns = useMemo(() => {
+    const baseline = healthClusters.map((c) => ({
       id: c.id,
       symptom: c.symptom,
       city: c.city,
       lat: c.lat,
       lng: c.lng,
       count: c.count,
-      intensity: c.intensity,
       note: '',
       created_at: '',
       live: false,
@@ -509,23 +595,63 @@ function MapView({
       lat: r.lat,
       lng: r.lng,
       count: 1,
-      intensity: 0.3,
       note: r.note,
       created_at: r.created_at,
       live: true,
     }));
     return [...baseline, ...live].filter(
-      (c) => selectedSymptom === 'All' || c.symptom === selectedSymptom,
+      (c) =>
+        withinKm(c.lat, c.lng, radiusKm) &&
+        (!search ||
+          c.city.toLowerCase().includes(search) ||
+          c.symptom.toLowerCase().includes(search)),
     );
-  }, [clusters, reports, selectedSymptom]);
+  }, [reports, radiusKm, search]);
+
+  const places = useMemo(
+    () =>
+      nearbyPlaces.filter(
+        (p) =>
+          withinKm(p.lat, p.lng, radiusKm) &&
+          (!search ||
+            p.name.toLowerCase().includes(search) ||
+            p.detail.toLowerCase().includes(search) ||
+            placeLabels[p.category].toLowerCase().includes(search)),
+      ),
+    [radiusKm, search],
+  );
+
+  const visibleCheckIns = useMemo(
+    () => (filter === 'all' || filter === 'checkins' ? checkIns : []),
+    [filter, checkIns],
+  );
+
+  const visiblePlaces = useMemo(
+    () => (filter === 'all' ? places : places.filter((p) => p.category === filter)),
+    [filter, places],
+  );
+
+  const summaryTiles = [
+    {
+      key: 'checkins' as MapFilterKey,
+      label: 'Check-ins',
+      value: compactNumber(checkIns.reduce((sum, c) => sum + c.count, 0)),
+      icon: Smile,
+      color: '#FF8A3D',
+    },
+    { key: 'hospital' as MapFilterKey, label: 'Hospitals', value: String(places.filter((p) => p.category === 'hospital').length), icon: Plus, color: '#3B82F6' },
+    { key: 'blood' as MapFilterKey, label: 'Blood', value: String(places.filter((p) => p.category === 'blood').length), icon: Droplet, color: '#FF4D6A' },
+    { key: 'safety' as MapFilterKey, label: 'Safety', value: String(places.filter((p) => p.category === 'safety').length), icon: ShieldCheck, color: '#34C77B' },
+    { key: 'support' as MapFilterKey, label: 'Support', value: String(places.filter((p) => p.category === 'support').length), icon: Users, color: '#8E7CC3' },
+  ];
 
   // Init map once
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
     const map = L.map(mapContainerRef.current, {
-      center: [37.5665, 126.978],
-      zoom: 10,
+      center: [youLocation.lat, youLocation.lng],
+      zoom: 12,
       zoomControl: false,
       attributionControl: true,
     });
@@ -536,7 +662,20 @@ function MapView({
       subdomains: 'abcd',
     }).addTo(map);
 
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.marker([youLocation.lat, youLocation.lng], {
+      icon: L.divIcon({
+        className: 'map-you',
+        html:
+          '<span class="map-you-label">You</span>' +
+          '<span class="map-you-halo"></span>' +
+          '<span class="map-you-dot"></span>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      }),
+      interactive: false,
+      zIndexOffset: -200,
+    }).addTo(map);
+
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
@@ -552,36 +691,44 @@ function MapView({
     if (!layerRef.current) return;
     layerRef.current.clearLayers();
 
-    combined.forEach((c) => {
+    visibleCheckIns.forEach((c) => {
       const color = symptomColors[c.symptom] ?? symptomColors.Other;
-      const radius = c.live ? 14 : 12 + c.intensity * 22;
-
-      const marker = L.circleMarker([c.lat, c.lng], {
-        radius,
-        color,
-        fillColor: color,
-        fillOpacity: c.live ? 0.65 : 0.35,
-        weight: c.live ? 2 : 1.5,
-      });
+      const marker = L.marker([c.lat, c.lng], { icon: makePinIcon(color, pinGlyphs.checkin) });
 
       const when = c.created_at
         ? new Date(c.created_at).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
         : 'Aggregate';
       const suffix = c.live
-        ? `<div style="font-size:10px;opacity:.7;margin-top:4px">Live report &middot; ${when}</div>` +
+        ? `<div style="font-size:10px;opacity:.7;margin-top:4px">Live check-in &middot; ${when}</div>` +
           (c.note ? `<div style="font-size:11px;margin-top:4px">${escapeHtml(c.note)}</div>` : '')
-        : `<div style="font-size:11px;margin-top:4px">${c.count} reports this week</div>`;
+        : `<div style="font-size:11px;margin-top:4px">${c.count} check-ins this week</div>`;
 
       marker.bindPopup(
         `<div style="font-family:'Plus Jakarta Sans',sans-serif">` +
-          `<div style="font-weight:700;color:${color};font-size:12px;text-transform:uppercase;letter-spacing:.08em">${c.symptom}</div>` +
+          `<div style="font-weight:700;color:${color};font-size:12px;text-transform:uppercase;letter-spacing:.08em">${escapeHtml(c.symptom)}</div>` +
           `<div style="font-weight:700;font-size:14px;margin-top:2px">${escapeHtml(c.city)}</div>` +
           suffix +
           `</div>`,
       );
       marker.addTo(layerRef.current!);
     });
-  }, [combined]);
+
+    visiblePlaces.forEach((p) => {
+      const color = placeColors[p.category];
+      const marker = L.marker([p.lat, p.lng], { icon: makePinIcon(color, pinGlyphs[p.category]) });
+
+      const away = distanceKm(youLocation.lat, youLocation.lng, p.lat, p.lng);
+      marker.bindPopup(
+        `<div style="font-family:'Plus Jakarta Sans',sans-serif">` +
+          `<div style="font-weight:700;color:${color};font-size:12px;text-transform:uppercase;letter-spacing:.08em">${placeLabels[p.category]}</div>` +
+          `<div style="font-weight:700;font-size:14px;margin-top:2px">${escapeHtml(p.name)}</div>` +
+          `<div style="font-size:11px;margin-top:4px">${escapeHtml(p.detail)}</div>` +
+          `<div style="font-size:10px;opacity:.7;margin-top:4px">${away.toFixed(1)} km from you</div>` +
+          `</div>`,
+      );
+      marker.addTo(layerRef.current!);
+    });
+  }, [visibleCheckIns, visiblePlaces]);
 
   const handleSubmit = async (payload: { symptom: string; note: string; locationName: string; lat: number; lng: number }) => {
     const { data, error } = await api.healthReports.insert({
@@ -594,35 +741,94 @@ function MapView({
 
     if (!error && data) {
       setReports((prev) => [data, ...prev]);
-      mapRef.current?.flyTo([payload.lat, payload.lng], 12, { duration: 1.2 });
+      mapRef.current?.flyTo([payload.lat, payload.lng], 13, { duration: 1.2 });
     }
-    setShowReportSheet(false);
+    setShowCheckInSheet(false);
+  };
+
+  const handleRecenter = () => {
+    mapRef.current?.flyTo([youLocation.lat, youLocation.lng], 13, { duration: 0.8 });
   };
 
   const liveCount = reports.length;
 
   return (
     <div className="mt-4">
-      {/* Symptom chips */}
+      {/* Category chips */}
       <div className="px-6 flex gap-2 overflow-x-auto scrollbar-none mb-3">
-        {symptoms.map((s) => (
-          <motion.button
-            key={s}
-            className={`whitespace-nowrap px-3.5 py-2 rounded-capsule text-caption font-bold ${
-              selectedSymptom === s
-                ? 'hero-glow text-white shadow-soft'
-                : 'glass text-ink-700 dark:text-ink-200'
-            }`}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => onSymptomChange(s)}
-          >
-            {s}
-          </motion.button>
-        ))}
+        {mapFilters.map((f) => {
+          const Icon = f.icon;
+          const active = filter === f.key;
+          return (
+            <motion.button
+              key={f.key}
+              className={`whitespace-nowrap py-1.5 rounded-capsule text-caption font-bold flex items-center gap-1.5 ${
+                Icon ? 'pl-1.5 pr-3.5' : 'px-4'
+              } ${active ? 'hero-glow text-white shadow-soft' : 'glass text-ink-700 dark:text-ink-200'}`}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setFilter(f.key)}
+            >
+              {Icon && (
+                <span
+                  className="w-6 h-6 rounded-[9px] flex items-center justify-center shrink-0"
+                  style={{ background: active ? 'rgba(255,255,255,0.24)' : `${f.color}1F` }}
+                >
+                  <Icon
+                    size={13}
+                    strokeWidth={2.6}
+                    style={{ color: active ? '#FFFFFF' : f.color }}
+                  />
+                </span>
+              )}
+              {f.label}
+            </motion.button>
+          );
+        })}
       </div>
 
+      {/* Search + filters */}
+      <div className="px-6 mb-3">
+        <div className="flex items-center gap-2 pl-3.5 pr-1.5 rounded-capsule glass focus-within:ring-2 focus-within:ring-lighthouse-500/40">
+          <Search size={15} className="text-ink-300 shrink-0" strokeWidth={2.5} />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={'Search nearby places\u2026'}
+            className="flex-1 min-w-0 bg-transparent py-3 text-caption text-ink-900 dark:text-ink-100 placeholder:text-ink-300 focus:outline-none"
+          />
+          <span className="w-px h-5 bg-ink-900/10 dark:bg-white/10 shrink-0" />
+          <motion.button
+            className="relative w-9 h-9 rounded-full flex items-center justify-center focus-ring shrink-0"
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setShowFilterSheet(true)}
+            aria-label="Map filters"
+          >
+            <SlidersHorizontal size={16} className="text-ink-600 dark:text-ink-300" strokeWidth={2.4} />
+            {radiusKm !== 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-coral-500" />
+            )}
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Struggle colour key — only relevant while looking at check-ins */}
+      {filter === 'checkins' && (
+        <div className="px-6 mb-3 flex flex-wrap gap-x-3 gap-y-1">
+          {Object.entries(symptomColors).map(([sym, color]) => (
+            <span
+              key={sym}
+              className="flex items-center gap-1.5 text-[10px] font-bold text-ink-600 dark:text-ink-300"
+            >
+              <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+              {sym}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Map */}
-      <div className="mx-6 relative rounded-hero overflow-hidden shadow-soft" style={{ height: 380 }}>
+      <div className="mx-6 relative rounded-hero overflow-hidden shadow-soft" style={{ height: 340 }}>
         <div ref={mapContainerRef} className="absolute inset-0" style={{ zIndex: 1 }} />
 
         {/* Live counter badge */}
@@ -633,37 +839,102 @@ function MapView({
             transition={{ duration: 2, repeat: Infinity }}
           />
           <span className="text-[11px] font-bold text-ink-900">
-            {loading ? 'Syncing\u2026' : `${liveCount} live report${liveCount === 1 ? '' : 's'}`}
+            {loading ? 'Syncing\u2026' : `${liveCount} live check-in${liveCount === 1 ? '' : 's'}`}
           </span>
         </div>
 
-      </div>
-
-      {/* Report button */}
-      <div className="px-6 mt-3">
-        <motion.button
-          className="w-full py-3.5 rounded-capsule hero-glow text-white font-display font-bold text-title shadow-medium shine flex items-center justify-center gap-2"
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowReportSheet(true)}
-        >
-          <Plus size={16} strokeWidth={3} />
-          Report a struggle
-        </motion.button>
-      </div>
-
-      {/* Legend */}
-      <div className="mx-6 mt-3 p-3 rounded-card glass-strong">
-        <p className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold mb-2">
-          Legend
-        </p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-          {Object.entries(symptomColors).map(([sym, color]) => (
-            <div key={sym} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-              <span className="text-[11px] font-bold text-ink-900 dark:text-ink-100">{sym}</span>
-            </div>
-          ))}
+        {/* Map controls */}
+        <div className="absolute right-3 bottom-6 flex flex-col items-center gap-2" style={{ zIndex: 2 }}>
+          <motion.button
+            className="w-10 h-10 rounded-full glass-strong flex items-center justify-center shadow-soft focus-ring"
+            whileTap={{ scale: 0.92 }}
+            onClick={handleRecenter}
+            aria-label="Centre the map on you"
+          >
+            <Crosshair size={17} className="text-ink-900 dark:text-ink-100" strokeWidth={2.4} />
+          </motion.button>
+          <div className="rounded-capsule glass-strong shadow-soft overflow-hidden flex flex-col">
+            <motion.button
+              className="w-10 h-9 flex items-center justify-center focus-ring"
+              whileTap={{ scale: 0.92 }}
+              onClick={() => mapRef.current?.zoomIn()}
+              aria-label="Zoom in"
+            >
+              <Plus size={16} className="text-ink-900 dark:text-ink-100" strokeWidth={2.8} />
+            </motion.button>
+            <span className="h-px bg-ink-900/10 dark:bg-white/10" />
+            <motion.button
+              className="w-10 h-9 flex items-center justify-center focus-ring"
+              whileTap={{ scale: 0.92 }}
+              onClick={() => mapRef.current?.zoomOut()}
+              aria-label="Zoom out"
+            >
+              <Minus size={16} className="text-ink-900 dark:text-ink-100" strokeWidth={2.8} />
+            </motion.button>
+          </div>
         </div>
+      </div>
+
+      {/* Community summary */}
+      <div className="mx-6 mt-4 relative overflow-hidden p-4 rounded-hero glass-strong">
+        <div
+          className="absolute -top-16 -right-16 w-44 h-44 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.5), transparent 70%)', filter: 'blur(26px)' }}
+        />
+        <div className="relative flex items-baseline justify-between gap-2">
+          <h3 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
+            Community summary
+          </h3>
+          <span className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold">
+            Today
+          </span>
+        </div>
+
+        <div className="relative mt-3 grid grid-cols-5 gap-1.5">
+          {summaryTiles.map((tile) => {
+            const Icon = tile.icon;
+            const active = filter === tile.key;
+            return (
+              <motion.button
+                key={tile.key}
+                className={`px-1 py-2 rounded-card text-center ${active ? 'glass-tint-warm' : 'glass'}`}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setFilter(active ? 'all' : tile.key)}
+              >
+                <span
+                  className="mx-auto w-7 h-7 rounded-[10px] flex items-center justify-center shadow-soft"
+                  style={{ background: `linear-gradient(135deg, ${tile.color}, ${tile.color}cc)` }}
+                >
+                  <Icon size={14} className="text-white" strokeWidth={2.5} />
+                </span>
+                <p className="mt-1.5 font-display font-bold text-body text-ink-900 dark:text-ink-100 leading-none">
+                  {tile.value}
+                </p>
+                <p className="mt-1 text-[9px] font-bold text-ink-600 dark:text-ink-300 leading-tight">
+                  {tile.label}
+                </p>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <motion.button
+          className="relative mt-3 w-full p-3.5 rounded-card hero-glow text-white shadow-medium shine flex items-center gap-3 text-left"
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowCheckInSheet(true)}
+        >
+          <span className="w-9 h-9 rounded-full bg-white/25 flex items-center justify-center shrink-0">
+            <Plus size={18} strokeWidth={3} />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-display font-bold text-body leading-tight">
+              Community check-in
+            </span>
+            <span className="block text-[11px] text-white/85 leading-snug">
+              Share how your day is going — anonymously
+            </span>
+          </span>
+        </motion.button>
       </div>
 
       <p className="px-6 mt-3 text-[11px] text-ink-600 dark:text-ink-300 text-center flex items-center justify-center gap-1">
@@ -672,11 +943,52 @@ function MapView({
       </p>
 
       <BottomSheet
-        isOpen={showReportSheet}
-        onClose={() => setShowReportSheet(false)}
-        title="Report a struggle"
+        isOpen={showCheckInSheet}
+        onClose={() => setShowCheckInSheet(false)}
+        title="Community check-in"
       >
         <ReportForm onSubmit={handleSubmit} />
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={showFilterSheet}
+        onClose={() => setShowFilterSheet(false)}
+        title="Map filters"
+      >
+        <div className="space-y-4">
+          <div>
+            <p className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold mb-2">
+              Distance from you
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {radiusOptions.map((o) => (
+                <motion.button
+                  key={o.km}
+                  className={`px-3.5 py-2 rounded-capsule text-caption font-bold ${
+                    radiusKm === o.km ? 'hero-glow text-white shadow-soft' : 'glass text-ink-700 dark:text-ink-200'
+                  }`}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setRadiusKm(o.km)}
+                >
+                  {o.label}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 px-3 py-2 rounded-capsule bg-mint-500/10 text-mint-700 dark:text-mint-300 text-caption font-bold w-fit">
+            <MapPin size={13} />
+            Centred on {youLocation.name}
+          </div>
+
+          <motion.button
+            className="w-full py-3.5 rounded-capsule hero-glow text-white font-display font-bold text-title shadow-medium"
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowFilterSheet(false)}
+          >
+            Show {visibleCheckIns.length + visiblePlaces.length} pins
+          </motion.button>
+        </div>
       </BottomSheet>
     </div>
   );

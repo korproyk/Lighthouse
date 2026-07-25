@@ -281,6 +281,31 @@ export const healthClusters: HealthCluster[] = [
   { id: 'h10', lat: 35.8714, lng: 128.6014, city: 'Daegu', symptom: 'FOMO', intensity: 0.4, count: 62 },
 ];
 
+export type PlaceCategory = 'hospital' | 'blood' | 'safety' | 'support';
+
+export interface NearbyPlace {
+  id: string;
+  name: string;
+  detail: string;
+  category: PlaceCategory;
+  lat: number;
+  lng: number;
+}
+
+export const nearbyPlaces: NearbyPlace[] = [
+  { id: 'p1', name: 'Seoul National University Hospital', detail: 'Open 24h \u00b7 Youth clinic', category: 'hospital', lat: 37.5799, lng: 126.9995 },
+  { id: 'p2', name: 'Severance Hospital', detail: 'Open 24h \u00b7 Emergency care', category: 'hospital', lat: 37.5623, lng: 126.9410 },
+  { id: 'p3', name: 'Red Cross Blood Center', detail: 'Donations 10:00\u201318:00', category: 'blood', lat: 37.5735, lng: 126.9850 },
+  { id: 'p4', name: 'Gangnam Blood Donation House', detail: 'Walk-ins welcome', category: 'blood', lat: 37.5045, lng: 127.0245 },
+  { id: 'p5', name: 'Mapo Youth Safe Zone', detail: 'Safe space \u00b7 Staff on site', category: 'safety', lat: 37.5540, lng: 126.9410 },
+  { id: 'p6', name: 'Jongno Youth Center', detail: 'Quiet rooms \u00b7 Free wifi-free zone', category: 'safety', lat: 37.5700, lng: 126.9910 },
+  { id: 'p7', name: 'Yongsan Library Safe Corner', detail: 'Phone-free study area', category: 'safety', lat: 37.5385, lng: 126.9660 },
+  { id: 'p8', name: 'Hongdae Teen Support Circle', detail: 'Meets Saturdays \u00b7 Anonymous', category: 'support', lat: 37.5560, lng: 126.9240 },
+  { id: 'p9', name: 'Euljiro Digital Detox Meetup', detail: 'Weekly \u00b7 Screen-free hangout', category: 'support', lat: 37.5665, lng: 127.0000 },
+  { id: 'p10', name: 'Yeouido Counseling Center', detail: 'Free youth counseling', category: 'support', lat: 37.5215, lng: 126.9245 },
+  { id: 'p11', name: 'Seongsu Peer Support Group', detail: 'Drop in \u00b7 No sign-up', category: 'support', lat: 37.5445, lng: 127.0560 },
+];
+
 export const accountabilityPartner = {
   name: 'Minjun',
   avatar: 'scholar',
