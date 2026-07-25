@@ -1,5 +1,6 @@
 import { motion, AnimatePresence, PanInfo, useDragControls } from 'framer-motion';
 import { useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -35,7 +36,11 @@ export default function BottomSheet({
     [onClose]
   );
 
-  return (
+  // Portal straight to <body> so the sheet is never trapped inside an
+  // ancestor's transform/stacking context (e.g. the animated per-tab
+  // wrapper in App.tsx) — otherwise the fixed-position capsule navbar can
+  // end up painted on top of it, blocking taps on the sheet's own buttons.
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -86,6 +91,7 @@ export default function BottomSheet({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

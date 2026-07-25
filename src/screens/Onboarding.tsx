@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, ArrowLeft, PenLine, Globe, Cake, Palette, Eye, EyeOff, Lock, Loader2 } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { hashPassword } from '../lib/hash';
-import Spark from '../components/Spark';
+import BeaconMascot from '../components/BeaconMascot';
 
 const themes = [
   { id: 'basic', label: 'Basic', swatch: '#FFB27A' },
@@ -298,11 +298,11 @@ export default function Onboarding() {
                 </motion.div>
               </div>
 
-              {/* Spark mascot + reassurance bubble */}
+              {/* Beacon mascot + reassurance bubble */}
               <div className="px-6 mt-6 flex items-end gap-3">
                 <div className="relative shrink-0">
                   <div className="absolute inset-0 rounded-full hero-glow blur-lg opacity-50 scale-90" />
-                  <Spark pose={canContinue ? 'cheering' : 'thinking'} size={68} className="relative" />
+                  <BeaconMascot size={68} className="relative" />
                 </div>
                 <AnimatePresence mode="wait">
                   {canContinue ? (
@@ -478,11 +478,11 @@ export default function Onboarding() {
                 </motion.div>
               </div>
 
-              {/* Spark mascot + reassurance bubble */}
+              {/* Beacon mascot + reassurance bubble */}
               <div className="px-6 mt-6 flex items-end gap-3">
                 <div className="relative shrink-0">
                   <div className="absolute inset-0 rounded-full hero-glow blur-lg opacity-50 scale-90" />
-                  <Spark pose="idle" size={68} className="relative" />
+                  <BeaconMascot size={68} className="relative" />
                 </div>
                 <div className="relative glass rounded-card px-4 py-3 flex-1">
                   <p className="text-caption text-ink-600 leading-relaxed">
