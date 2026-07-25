@@ -5,11 +5,28 @@ import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import Lumi from '../components/Lumi';
-import BeaconMascot from '../components/BeaconMascot';
 import BottomSheet from '../components/BottomSheet';
 import LearnPanel from '../components/LearnPanel';
 import { leaderboard, SLEEP_GOAL_HOURS } from '../lib/mockData';
 import type { Challenge } from '../lib/mockData';
+
+const podiumBadges: Record<1 | 2 | 3, { src: string; alt: string; bar: string }> = {
+  1: {
+    src: '/images/podium-1.png',
+    alt: '1st place flame with sunglasses',
+    bar: 'hero-glow',
+  },
+  2: {
+    src: '/images/podium-2.png',
+    alt: '2nd place silver flame',
+    bar: 'bg-[#C0C0C0] dark:bg-[#8A8A8A]',
+  },
+  3: {
+    src: '/images/podium-3.png',
+    alt: '3rd place bronze flame',
+    bar: 'bg-[#CD7F32]',
+  },
+};
 
 const packs = [
   { key: 'all', label: 'challenges.all' },
@@ -537,12 +554,19 @@ function LeaderboardView() {
           style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.35), transparent 70%)', filter: 'blur(28px)' }}
         />
 
-        <div className="relative flex items-end justify-center gap-2">
+        <div className="relative flex items-end justify-center gap-1.5">
           {podium.map((entry, visualIndex) => {
             // visualIndex: 0 = 2nd, 1 = 1st, 2 = 3rd
-            const place = visualIndex === 1 ? 1 : visualIndex === 0 ? 2 : 3;
+            const place = (visualIndex === 1 ? 1 : visualIndex === 0 ? 2 : 3) as 1 | 2 | 3;
             const isFirst = place === 1;
+            const badge = podiumBadges[place];
             const barH = isFirst ? 'h-24' : place === 2 ? 'h-16' : 'h-12';
+            const scoreTone =
+              place === 1
+                ? 'text-lighthouse-600 dark:text-lighthouse-300'
+                : place === 2
+                  ? 'text-[#8A8A8A] dark:text-[#C0C0C0]'
+                  : 'text-[#B87333]';
             return (
               <motion.div
                 key={entry.rank}
@@ -551,40 +575,24 @@ function LeaderboardView() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: isFirst ? 0 : place * 0.08 }}
               >
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold mb-1.5 ${
-                  isFirst ? 'hero-glow text-white' : 'bg-ink-100 dark:bg-night-700 text-ink-600 dark:text-ink-300'
-                }`}>
-                  {place}
-                </span>
-                {isFirst ? (
-                  <div className="w-16 h-16 rounded-full hero-glow flex items-center justify-center ring-4 ring-lighthouse-300/60 overflow-hidden shadow-soft">
-                    <BeaconMascot size={52} animate className="translate-y-0.5" />
-                  </div>
-                ) : (
-                  <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold ring-2 ${
-                    place === 2
-                      ? 'bg-gradient-to-br from-lighthouse-100 to-lighthouse-300 text-lighthouse-700 ring-lighthouse-200'
-                      : 'bg-gradient-to-br from-ocean-50 to-ocean-300 text-ocean-700 ring-ocean-300/50'
-                  }`}>
-                    {entry.avatar}
-                  </div>
-                )}
-                <p className="mt-1.5 text-caption font-bold text-ink-900 dark:text-ink-100 truncate max-w-full">
+                <motion.img
+                  src={badge.src}
+                  alt={badge.alt}
+                  className={`object-contain drop-shadow-sm ${
+                    isFirst ? 'w-[5.75rem] h-[5.75rem]' : 'w-[4.75rem] h-[4.75rem]'
+                  }`}
+                  draggable={false}
+                  animate={{ y: [0, isFirst ? -4 : -3, 0] }}
+                  transition={{ duration: isFirst ? 2.8 : 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <p className="mt-1 text-caption font-bold text-ink-900 dark:text-ink-100 truncate max-w-full">
                   {entry.name}
                 </p>
-                <p className={`text-[11px] font-bold flex items-center gap-0.5 ${
-                  isFirst ? 'text-lighthouse-600 dark:text-lighthouse-300' : 'text-ink-300'
-                }`}>
+                <p className={`text-[11px] font-bold flex items-center gap-0.5 ${scoreTone}`}>
                   <span aria-hidden>{'\u{1F525}'}</span> {entry.score}
                 </p>
-                <div className={`mt-2 w-full ${barH} rounded-t-sm flex items-center justify-center ${
-                  isFirst
-                    ? 'hero-glow'
-                    : 'bg-paper dark:bg-night-700 card-border'
-                }`}>
-                  <span className={`font-display font-bold text-display-l ${
-                    isFirst ? 'text-white' : 'text-ink-300'
-                  }`}>
+                <div className={`mt-2 w-full ${barH} rounded-t-sm flex items-center justify-center ${badge.bar}`}>
+                  <span className="font-display font-bold text-display-l text-white">
                     {place}
                   </span>
                 </div>
