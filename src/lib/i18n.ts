@@ -27,7 +27,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     'challenges.medium': 'Medium',
     'challenges.bold': 'Bold',
     'challenges.done': 'Mark done',
-    'challenges.completed': 'Completed today',
+    'challenges.completed': 'Completed',
     'challenges.all': 'All',
     'challenges.bangladesh': 'Bangladesh',
     'challenges.korea': 'Korea',

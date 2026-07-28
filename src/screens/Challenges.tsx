@@ -10,6 +10,10 @@ import LearnPanel from '../components/LearnPanel';
 import SleepRecording from '../components/SleepRecording';
 import { leaderboard, SLEEP_GOAL_HOURS } from '../lib/mockData';
 import type { Challenge } from '../lib/mockData';
+import {
+  challengeCycleEpoch,
+  orderChallengesForList,
+} from '../lib/challengeCycle';
 
 const podiumBadges: Record<1 | 2 | 3, { src: string; alt: string; bar: string }> = {
   1: {
@@ -50,20 +54,27 @@ function triggerConfetti() {
 }
 
 export default function Challenges() {
-  const { challenges, completeChallenge } = useStore();
+  const { challenges, completeChallenge, refreshExpiredChallenges, user } = useStore();
   const [topTab, setTopTab] = useState<'challenges' | 'leaderboard' | 'learn'>('challenges');
   const [activePack, setActivePack] = useState('all');
   const [activeDifficulty, setActiveDifficulty] = useState<typeof difficulties[number] | null>(null);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [showComplete, setShowComplete] = useState(false);
 
+  useEffect(() => {
+    refreshExpiredChallenges();
+  }, [refreshExpiredChallenges]);
+
   const sleepQuest = challenges.find((c) => c.tracker === 'sleep') ?? null;
-  const filtered = challenges.filter((c) => {
-    if (c.required || c.tracker === 'sleep') return false;
-    if (activePack !== 'all' && c.pack !== activePack) return false;
-    if (activeDifficulty && c.difficulty !== activeDifficulty) return false;
-    return true;
-  });
+  const filtered = useMemo(
+    () =>
+      orderChallengesForList(challenges, {
+        pack: activePack,
+        difficulty: activeDifficulty,
+        seedKey: `${user.name}|${challengeCycleEpoch()}`,
+      }),
+    [challenges, activePack, activeDifficulty, user.name]
+  );
 
   const completedToday = challenges.filter((c) => c.completed).length;
 

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { userProfile, checkIns, challenges, badges, SLEEP_GOAL_HOURS } from './mockData';
 import type { CheckIn, Challenge, Badge, ChallengeGroup } from './mockData';
 import { setLanguage } from './i18n';
+import { refreshChallengeList } from './challengeCycle';
 
 export interface Account {
   passwordHash: string;
@@ -53,6 +54,7 @@ interface AppState {
   setLanguage: (lang: string) => void;
   setActiveTab: (tab: number) => void;
   completeChallenge: (id: string) => void;
+  refreshExpiredChallenges: () => void;
   logCheckIn: (data: Partial<CheckIn>) => void;
   dismissNudge: () => void;
   dismissEasterEgg: () => void;
@@ -80,14 +82,23 @@ function accountKey(nickname: string): string {
   return nickname.trim().toLowerCase();
 }
 
-/** Keep completed flags from saved progress, but always include new seed quests
- *  (e.g. the required sleep tracker added after someone already onboarded). */
+/** Keep completion from saved progress, but always include new seed quests
+ *  (e.g. the required sleep tracker added after someone already onboarded).
+ *  Also clear done flags once the 2-week redo window has passed. */
 function mergeChallengeCatalog(saved: Challenge[] | undefined, seed: Challenge[]): Challenge[] {
   const byId = new Map((saved ?? []).map((c) => [c.id, c]));
-  return seed.map((seedChallenge) => {
-    const prev = byId.get(seedChallenge.id);
-    return prev ? { ...seedChallenge, completed: prev.completed } : { ...seedChallenge };
-  });
+  return refreshChallengeList(
+    seed.map((seedChallenge) => {
+      const prev = byId.get(seedChallenge.id);
+      return prev
+        ? {
+            ...seedChallenge,
+            completed: prev.completed,
+            completedAt: prev.completedAt,
+          }
+        : { ...seedChallenge };
+    })
+  );
 }
 
 export const useStore = create<AppState>()(
@@ -121,15 +132,25 @@ export const useStore = create<AppState>()(
       },
       setActiveTab: (tab) => set({ activeTab: tab }),
       completeChallenge: (id) =>
+        set((s) => {
+          const target = s.challenges.find((c) => c.id === id);
+          if (!target || target.completed) return s;
+          return {
+            challenges: s.challenges.map((c) =>
+              c.id === id
+                ? { ...c, completed: true, completedAt: Date.now() }
+                : c
+            ),
+            user: {
+              ...s.user,
+              currentScore: s.user.currentScore + (target.points ?? 0),
+              totalChallenges: s.user.totalChallenges + 1,
+            },
+          };
+        }),
+      refreshExpiredChallenges: () =>
         set((s) => ({
-          challenges: s.challenges.map((c) =>
-            c.id === id ? { ...c, completed: true } : c
-          ),
-          user: {
-            ...s.user,
-            currentScore: s.user.currentScore + (s.challenges.find((c) => c.id === id)?.points ?? 0),
-            totalChallenges: s.user.totalChallenges + 1,
-          },
+          challenges: refreshChallengeList(s.challenges),
         })),
       logCheckIn: (data) =>
         set((s) => {

@@ -17,6 +17,8 @@ export interface Challenge {
   timeEstimate: string;
   points: number;
   completed?: boolean;
+  /** When the challenge was marked done — used for the 2-week redo window. */
+  completedAt?: number;
   // Required quests are pinned above the list and ignore the pack/difficulty
   // filters. `tracker` marks a quest that is measured by the app instead of
   // being self-reported with a Done button.
