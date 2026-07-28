@@ -169,9 +169,9 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                 Double-tap bedtime when you put the phone down. Double-tap wakeup when you get up.
               </p>
 
-              {/* Timer card — veiled while sleeping until the 8h goal */}
+              {/* Timer card — clock unmounts while sleeping; solid veil until 8h */}
               <motion.div
-                className="relative mt-5 overflow-hidden rounded-hero glass-strong p-6 text-center"
+                className="relative mt-5 overflow-hidden rounded-hero glass-strong p-6 text-center min-h-[11.5rem]"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
               >
@@ -183,28 +183,36 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                   className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full pointer-events-none"
                   style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.28), transparent 70%)', filter: 'blur(28px)' }}
                 />
-                <p className="relative text-micro uppercase tracking-[0.16em] font-bold text-ink-300 mb-2">
-                  {sleeping ? (timerCovered ? 'Sleeping' : 'Goal reached') : 'Ready'}
-                </p>
-                <p
-                  className="relative font-display font-bold text-[2.75rem] leading-none tracking-tight text-ink-900 dark:text-ink-100 tabular-nums"
-                  aria-hidden={timerCovered}
-                >
-                  {formatElapsed(elapsedMs)}
-                </p>
-                <p className="relative mt-2 text-caption text-ink-300">
-                  Goal {SLEEP_GOAL_HOURS}h
-                </p>
 
-                <AnimatePresence>
+                {/* Digits only exist when not covered — nothing to peek through */}
+                {!timerCovered && (
+                  <motion.div
+                    className="relative z-[1] min-h-[8.5rem] flex flex-col items-center justify-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <p className="text-micro uppercase tracking-[0.16em] font-bold text-ink-300 mb-2">
+                      {sleeping ? 'Goal reached' : 'Ready'}
+                    </p>
+                    <p className="font-display font-bold text-[2.75rem] leading-none tracking-tight text-ink-900 dark:text-ink-100 tabular-nums">
+                      {formatElapsed(elapsedMs)}
+                    </p>
+                    <p className="mt-2 text-caption text-ink-300">
+                      Goal {SLEEP_GOAL_HOURS}h
+                    </p>
+                  </motion.div>
+                )}
+
+                <AnimatePresence initial={false}>
                   {timerCovered && (
                     <motion.div
                       key="timer-veil"
-                      className="absolute inset-0 z-10 flex flex-col items-center justify-center px-5 bg-cream/95 dark:bg-night-900/95 backdrop-blur-sm"
+                      className="absolute inset-0 z-10 flex flex-col items-center justify-center px-5 bg-cream dark:bg-night-900"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                      transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
                       aria-label={`Timer hidden until ${SLEEP_GOAL_HOURS} hours`}
                     >
                       <div className="w-12 h-12 rounded-full hero-glow shadow-soft flex items-center justify-center mb-3">
