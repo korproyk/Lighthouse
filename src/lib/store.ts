@@ -69,7 +69,7 @@ interface AppState {
   verifyAccountPassword: (nickname: string, passwordHash: string) => boolean;
   syncAccount: (nickname: string) => void;
   startSleepSession: () => void;
-  stopSleepSession: () => SleepRecord | null;
+  stopSleepSession: (adjustMs?: number) => SleepRecord | null;
   cancelSleepSession: () => void;
   joinGroup: (id: string) => boolean;
   leaveGroup: () => void;
@@ -267,14 +267,15 @@ export const useStore = create<AppState>()(
       // killed, or the phone is locked all night.
       startSleepSession: () => set({ sleepSession: { startedAt: Date.now() } }),
       cancelSleepSession: () => set({ sleepSession: null }),
-      stopSleepSession: () => {
+      stopSleepSession: (adjustMs = 0) => {
         const s = get();
         if (!s.sleepSession) return null;
         const endedAt = Date.now();
+        const adjustedMs = Math.max(0, endedAt - s.sleepSession.startedAt - Math.max(0, adjustMs));
         const record: SleepRecord = {
           startedAt: s.sleepSession.startedAt,
           endedAt,
-          hours: Math.max(0, (endedAt - s.sleepSession.startedAt) / 3_600_000),
+          hours: adjustedMs / 3_600_000,
         };
         const today = new Date().toISOString().split('T')[0];
         set({

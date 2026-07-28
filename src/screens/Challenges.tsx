@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Star, Check, Moon, Sunrise } from 'lucide-react';
+import { Clock, Star, Check, Moon } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import Lumi from '../components/Lumi';
 import BottomSheet from '../components/BottomSheet';
 import LearnPanel from '../components/LearnPanel';
+import SleepRecording from '../components/SleepRecording';
 import { leaderboard, SLEEP_GOAL_HOURS } from '../lib/mockData';
 import type { Challenge } from '../lib/mockData';
 
@@ -217,106 +218,45 @@ export default function Challenges() {
   );
 }
 
-function formatElapsed(ms: number): string {
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
 /* =========== Required sleep quest =========== */
 function SleepQuestCard({ quest }: { quest: Challenge }) {
-  const {
-    sleepSession,
-    lastSleep,
-    startSleepSession,
-    stopSleepSession,
-  } = useStore();
-  const [now, setNow] = useState(Date.now());
+  const { sleepSession, lastSleep } = useStore();
+  const [pageOpen, setPageOpen] = useState(false);
   const [result, setResult] = useState<{ hours: number; completed: boolean } | null>(null);
-
-  useEffect(() => {
-    if (!sleepSession) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [sleepSession]);
-
-  const elapsedMs = sleepSession ? now - sleepSession.startedAt : 0;
-  const elapsedHours = elapsedMs / 3_600_000;
-  const progress = Math.min(1, elapsedHours / SLEEP_GOAL_HOURS);
-
-  const handleWake = () => {
-    const record = stopSleepSession();
-    if (!record) return;
-    const completed = record.hours >= SLEEP_GOAL_HOURS;
-    setResult({ hours: record.hours, completed });
-    if (completed) triggerConfetti();
-  };
+  const sleeping = Boolean(sleepSession);
 
   return (
-    <motion.div
-      className={`relative mx-6 mt-4 p-5 rounded-hero overflow-hidden ${
-        quest.completed ? 'glass-tint-warm' : 'glass-strong'
-      }`}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <div
-        className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)', filter: 'blur(26px)' }}
-      />
-      <div
-        className="absolute -bottom-14 -left-14 w-40 h-40 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.4), transparent 70%)', filter: 'blur(26px)' }}
-      />
+    <>
+      <motion.div
+        className={`relative mx-6 mt-4 p-5 rounded-hero overflow-hidden ${
+          quest.completed ? 'glass-tint-warm' : 'glass-strong'
+        }`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div
+          className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)', filter: 'blur(26px)' }}
+        />
+        <div
+          className="absolute -bottom-14 -left-14 w-40 h-40 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.4), transparent 70%)', filter: 'blur(26px)' }}
+        />
 
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-micro uppercase tracking-wider font-bold text-lavender-500">Required</span>
-            <span className="text-micro uppercase tracking-wider font-bold text-ink-300">· Sleep</span>
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-micro uppercase tracking-wider font-bold text-lavender-500">Required</span>
+              <span className="text-micro uppercase tracking-wider font-bold text-ink-300">· Sleep</span>
+            </div>
+            <h3 className="font-display font-bold text-title text-ink-900 dark:text-ink-100">{quest.title}</h3>
+            <p className="text-caption text-ink-600 dark:text-ink-300 mt-1">{quest.description}</p>
           </div>
-          <h3 className="font-display font-bold text-title text-ink-900 dark:text-ink-100">{quest.title}</h3>
-          <p className="text-caption text-ink-600 dark:text-ink-300 mt-1">{quest.description}</p>
+          <div className="w-12 h-12 rounded-full bg-night-800/10 dark:bg-night-700 flex items-center justify-center shrink-0">
+            <Moon size={22} className="text-lavender-500" />
+          </div>
         </div>
-        <div className="w-12 h-12 rounded-full bg-night-800/10 dark:bg-night-700 flex items-center justify-center shrink-0">
-          <Moon size={22} className="text-lavender-500" />
-        </div>
-      </div>
 
-      {sleepSession ? (
-        <div className="relative mt-4 space-y-3">
-          <div className="text-center">
-            <p className="text-micro uppercase tracking-wider text-ink-300 font-bold mb-1">Sleeping</p>
-            <p className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tabular-nums tracking-tight">
-              {formatElapsed(elapsedMs)}
-            </p>
-            <p className="text-caption text-ink-300 mt-1">
-              Goal {SLEEP_GOAL_HOURS}h · {Math.floor(progress * 100)}%
-            </p>
-          </div>
-          <div className="h-2 rounded-full bg-ink-100 dark:bg-night-700 overflow-hidden">
-            <motion.div
-              className="h-full hero-glow rounded-full"
-              initial={false}
-              animate={{ width: `${progress * 100}%` }}
-              transition={{ duration: 0.4 }}
-            />
-          </div>
-          <p className="text-[11px] text-ink-300 text-center">
-            Timer keeps running if you close the app. Wake up and stop it when you&apos;re ready.
-          </p>
-          <motion.button
-            className="w-full py-3.5 rounded-capsule hero-glow text-white font-display font-bold text-caption shadow-soft flex items-center justify-center gap-2"
-            whileTap={{ scale: 0.97 }}
-            onClick={handleWake}
-          >
-            <Sunrise size={16} />
-            I&apos;m awake
-          </motion.button>
-        </div>
-      ) : (
         <div className="relative mt-4 space-y-3">
           {result && (
             <div className={`p-3 rounded-card text-center ${
@@ -334,9 +274,14 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
               </p>
             </div>
           )}
-          {!result && lastSleep && !quest.completed && (
+          {!result && lastSleep && !quest.completed && !sleeping && (
             <p className="text-caption text-ink-300 text-center">
               Last night: {lastSleep.hours.toFixed(1)}h
+            </p>
+          )}
+          {sleeping && (
+            <p className="text-caption text-lighthouse-600 dark:text-lighthouse-300 text-center font-semibold">
+              Recording in progress — open the sleep page to wake up.
             </p>
           )}
           {quest.completed ? (
@@ -352,12 +297,11 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
               whileTap={{ scale: 0.97 }}
               onClick={() => {
                 setResult(null);
-                startSleepSession();
-                setNow(Date.now());
+                setPageOpen(true);
               }}
             >
               <Moon size={16} />
-              Start sleep
+              {sleeping ? 'Continue recording' : 'Record sleep time'}
             </motion.button>
           )}
           <div className="flex items-center justify-between text-caption text-ink-300">
@@ -367,8 +311,16 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
             </span>
           </div>
         </div>
-      )}
-    </motion.div>
+      </motion.div>
+
+      <SleepRecording
+        isOpen={pageOpen}
+        onClose={() => setPageOpen(false)}
+        onCompleted={(hours) => {
+          setResult({ hours, completed: hours >= SLEEP_GOAL_HOURS });
+        }}
+      />
+    </>
   );
 }
 

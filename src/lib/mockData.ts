@@ -105,7 +105,7 @@ export const challenges: Challenge[] = [
     id: 'core-sleep',
     title: 'Sleep 8 Hours',
     description: 'Everyone starts here. Time a full night of rest.',
-    instructions: 'Tap Start sleep when you put your phone down for the night. The timer keeps counting while the app is closed, so you can leave your phone alone until morning. Tap I\'m awake when you get up and the night is recorded. Reach 8 hours to complete it.',
+    instructions: 'Tap Record sleep time to open the sleep page. Double-tap Start Bedtime when you put your phone down. The timer keeps counting while the app is closed. In the morning, double-tap Are U Awoke? to stop it. Reach 8 hours to complete it.',
     difficulty: 'easy',
     pack: 'worldwide',
     flag: '\u{1F31B}',

@@ -560,6 +560,24 @@
   50% { transform: scale(1.12); opacity: 0.35; }
 }
 
+/* Sleep recording night sky — soft warm starfield */
+.sleep-stars {
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 28% 42%, rgba(255, 210, 170, 0.65), transparent),
+    radial-gradient(1.5px 1.5px at 46% 12%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 62% 36%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 78% 22%, rgba(255, 178, 122, 0.7), transparent),
+    radial-gradient(1px 1px at 88% 58%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 18% 72%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 38% 84%, rgba(255, 210, 170, 0.55), transparent),
+    radial-gradient(1px 1px at 55% 68%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 72% 88%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1.5px 1.5px at 8% 48%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 94% 14%, rgba(255, 178, 122, 0.55), transparent);
+  opacity: 0.85;
+}
+
 .leaflet-container .leaflet-popup-content-wrapper {
   border-radius: 16px;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
