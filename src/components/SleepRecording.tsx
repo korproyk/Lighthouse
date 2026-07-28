@@ -33,7 +33,6 @@ function formatStamp(ts: number): string {
 
 export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRecordingProps) {
   const {
-    user,
     sleepSession,
     lastSleep,
     startSleepSession,
@@ -67,6 +66,8 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
   }, [isOpen, sleeping]);
 
   const elapsedMs = sleepSession ? now - sleepSession.startedAt : 0;
+  const goalMs = SLEEP_GOAL_HOURS * 3_600_000;
+  const timerCovered = sleeping && elapsedMs < goalMs;
 
   const confirmBedtime = () => {
     startSleepSession();
@@ -165,10 +166,10 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
               </div>
 
               <p className="mt-2 text-caption text-ink-600 dark:text-ink-300 leading-relaxed">
-                Double-tap bedtime when you put the phone down. Double-tap wakeup when you get up. Hi, {user.name || 'there'}.
+                Double-tap bedtime when you put the phone down. Double-tap wakeup when you get up.
               </p>
 
-              {/* Timer card */}
+              {/* Timer card — veiled while sleeping until the 8h goal */}
               <motion.div
                 className="relative mt-5 overflow-hidden rounded-hero glass-strong p-6 text-center"
                 initial={{ opacity: 0, y: 8 }}
@@ -183,14 +184,41 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                   style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.28), transparent 70%)', filter: 'blur(28px)' }}
                 />
                 <p className="relative text-micro uppercase tracking-[0.16em] font-bold text-ink-300 mb-2">
-                  {sleeping ? 'Sleeping' : 'Ready'}
+                  {sleeping ? (timerCovered ? 'Sleeping' : 'Goal reached') : 'Ready'}
                 </p>
-                <p className="relative font-display font-bold text-[2.75rem] leading-none tracking-tight text-ink-900 dark:text-ink-100 tabular-nums">
+                <p
+                  className="relative font-display font-bold text-[2.75rem] leading-none tracking-tight text-ink-900 dark:text-ink-100 tabular-nums"
+                  aria-hidden={timerCovered}
+                >
                   {formatElapsed(elapsedMs)}
                 </p>
                 <p className="relative mt-2 text-caption text-ink-300">
                   Goal {SLEEP_GOAL_HOURS}h
                 </p>
+
+                <AnimatePresence>
+                  {timerCovered && (
+                    <motion.div
+                      key="timer-veil"
+                      className="absolute inset-0 z-10 flex flex-col items-center justify-center px-5 bg-cream/95 dark:bg-night-900/95 backdrop-blur-sm"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                      aria-label={`Timer hidden until ${SLEEP_GOAL_HOURS} hours`}
+                    >
+                      <div className="w-12 h-12 rounded-full hero-glow shadow-soft flex items-center justify-center mb-3">
+                        <Moon size={22} className="text-white" />
+                      </div>
+                      <p className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                        Rest easy
+                      </p>
+                      <p className="mt-1.5 text-caption text-ink-600 dark:text-ink-300 text-center leading-relaxed max-w-[16rem]">
+                        Timer stays covered until you hit {SLEEP_GOAL_HOURS} hours.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
 
               {/* Bedtime / Wake */}
