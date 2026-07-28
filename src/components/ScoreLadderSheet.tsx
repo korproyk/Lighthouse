@@ -118,7 +118,7 @@ export default function ScoreLadderSheet({ isOpen, onClose, score }: Props) {
                   className="shrink-0 font-display font-bold text-caption tabular-nums"
                   style={{ color: unlocked ? tier.color : undefined }}
                 >
-                  {tier.id === 'balance' ? `≤${SCORE_RING_FULL}` : `>${tier.above}`}
+                  {tier.id === 'balance' ? SCORE_RING_FULL : tier.above}
                 </p>
               </motion.div>
             );
