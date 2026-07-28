@@ -80,6 +80,16 @@ function accountKey(nickname: string): string {
   return nickname.trim().toLowerCase();
 }
 
+/** Keep completed flags from saved progress, but always include new seed quests
+ *  (e.g. the required sleep tracker added after someone already onboarded). */
+function mergeChallengeCatalog(saved: Challenge[] | undefined, seed: Challenge[]): Challenge[] {
+  const byId = new Map((saved ?? []).map((c) => [c.id, c]));
+  return seed.map((seedChallenge) => {
+    const prev = byId.get(seedChallenge.id);
+    return prev ? { ...seedChallenge, completed: prev.completed } : { ...seedChallenge };
+  });
+}
+
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -192,7 +202,7 @@ export const useStore = create<AppState>()(
           score: 0,
           completed: false,
         }));
-        const freshChallenges = s.challenges.map((c) => ({ ...c, completed: false }));
+        const freshChallenges = challenges.map((c) => ({ ...c, completed: false }));
         const freshBadges = s.badges.map((b) => ({ ...b, earned: false, earnedDate: undefined }));
 
         set({
@@ -228,7 +238,7 @@ export const useStore = create<AppState>()(
         set({
           user: account.user,
           checkIns: account.checkIns,
-          challenges: account.challenges,
+          challenges: mergeChallengeCatalog(account.challenges, challenges),
           badges: account.badges,
           darkMode: account.darkMode,
           uvMode: account.uvMode,
@@ -332,6 +342,23 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'lighthouse-storage',
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AppState>;
+        return {
+          ...current,
+          ...p,
+          challenges: mergeChallengeCatalog(p.challenges, challenges),
+          accounts: Object.fromEntries(
+            Object.entries(p.accounts ?? current.accounts).map(([key, account]) => [
+              key,
+              {
+                ...account,
+                challenges: mergeChallengeCatalog(account.challenges, challenges),
+              },
+            ])
+          ),
+        };
+      },
       partialize: (state) => ({
         hasOnboarded: state.hasOnboarded,
         darkMode: state.darkMode,
