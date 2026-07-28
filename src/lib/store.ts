@@ -127,7 +127,7 @@ export const useStore = create<AppState>()(
           ),
           user: {
             ...s.user,
-            currentScore: Math.min(100, s.user.currentScore + (s.challenges.find((c) => c.id === id)?.points ?? 0) / 5),
+            currentScore: s.user.currentScore + (s.challenges.find((c) => c.id === id)?.points ?? 0),
             totalChallenges: s.user.totalChallenges + 1,
           },
         })),
@@ -146,7 +146,7 @@ export const useStore = create<AppState>()(
         set((s) => ({
           user: {
             ...s.user,
-            currentScore: Math.min(100, s.user.currentScore + points),
+            currentScore: s.user.currentScore + points,
           },
         })),
       setUserName: (name) =>
@@ -195,10 +195,8 @@ export const useStore = create<AppState>()(
         };
         const freshCheckIns = s.checkIns.map((c) => ({
           ...c,
-          mood: 0,
           screenTime: 0,
           sleep: 0,
-          socialBattery: 0,
           score: 0,
           completed: false,
         }));

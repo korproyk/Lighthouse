@@ -1,9 +1,7 @@
 export interface CheckIn {
   date: string;
-  mood: number;
   screenTime: number;
   sleep: number;
-  socialBattery: number;
   score: number;
   completed: boolean;
 }
@@ -84,20 +82,20 @@ export const userProfile = {
 };
 
 export const checkIns: CheckIn[] = [
-  { date: daysAgo(13), mood: 3, screenTime: 5.2, sleep: 6.5, socialBattery: 45, score: 58, completed: true },
-  { date: daysAgo(12), mood: 4, screenTime: 4.1, sleep: 7.0, socialBattery: 60, score: 62, completed: true },
-  { date: daysAgo(11), mood: 3, screenTime: 6.0, sleep: 5.5, socialBattery: 35, score: 55, completed: true },
-  { date: daysAgo(10), mood: 4, screenTime: 3.8, sleep: 7.5, socialBattery: 70, score: 67, completed: true },
-  { date: daysAgo(9), mood: 5, screenTime: 3.2, sleep: 8.0, socialBattery: 80, score: 72, completed: true },
-  { date: daysAgo(8), mood: 4, screenTime: 4.5, sleep: 7.0, socialBattery: 55, score: 65, completed: true },
-  { date: daysAgo(7), mood: 3, screenTime: 5.5, sleep: 6.0, socialBattery: 40, score: 58, completed: true },
-  { date: daysAgo(6), mood: 4, screenTime: 3.5, sleep: 7.5, socialBattery: 65, score: 69, completed: true },
-  { date: daysAgo(5), mood: 5, screenTime: 2.8, sleep: 8.0, socialBattery: 75, score: 74, completed: true },
-  { date: daysAgo(4), mood: 4, screenTime: 4.0, sleep: 7.0, socialBattery: 60, score: 68, completed: true },
-  { date: daysAgo(3), mood: 4, screenTime: 3.2, sleep: 7.5, socialBattery: 70, score: 71, completed: true },
-  { date: daysAgo(2), mood: 5, screenTime: 2.5, sleep: 8.0, socialBattery: 80, score: 76, completed: true },
-  { date: daysAgo(1), mood: 4, screenTime: 3.0, sleep: 7.5, socialBattery: 65, score: 73, completed: true },
-  { date: daysAgo(0), mood: 0, screenTime: 0, sleep: 0, socialBattery: 0, score: 73, completed: false },
+  { date: daysAgo(13), screenTime: 5.2, sleep: 6.5, score: 58, completed: true },
+  { date: daysAgo(12), screenTime: 4.1, sleep: 7.0, score: 62, completed: true },
+  { date: daysAgo(11), screenTime: 6.0, sleep: 5.5, score: 55, completed: true },
+  { date: daysAgo(10), screenTime: 3.8, sleep: 7.5, score: 67, completed: true },
+  { date: daysAgo(9), screenTime: 3.2, sleep: 8.0, score: 72, completed: true },
+  { date: daysAgo(8), screenTime: 4.5, sleep: 7.0, score: 65, completed: true },
+  { date: daysAgo(7), screenTime: 5.5, sleep: 6.0, score: 58, completed: true },
+  { date: daysAgo(6), screenTime: 3.5, sleep: 7.5, score: 69, completed: true },
+  { date: daysAgo(5), screenTime: 2.8, sleep: 8.0, score: 74, completed: true },
+  { date: daysAgo(4), screenTime: 4.0, sleep: 7.0, score: 68, completed: true },
+  { date: daysAgo(3), screenTime: 3.2, sleep: 7.5, score: 71, completed: true },
+  { date: daysAgo(2), screenTime: 2.5, sleep: 8.0, score: 76, completed: true },
+  { date: daysAgo(1), screenTime: 3.0, sleep: 7.5, score: 73, completed: true },
+  { date: daysAgo(0), screenTime: 0, sleep: 0, score: 73, completed: false },
 ];
 
 export const challenges: Challenge[] = [
