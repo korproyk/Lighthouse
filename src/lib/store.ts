@@ -53,7 +53,7 @@ interface AppState {
   toggleUvMode: () => void;
   setLanguage: (lang: string) => void;
   setActiveTab: (tab: number) => void;
-  completeChallenge: (id: string) => void;
+  completeChallenge: (id: string, proofDataUrl?: string) => void;
   refreshExpiredChallenges: () => void;
   logCheckIn: (data: Partial<CheckIn>) => void;
   dismissNudge: () => void;
@@ -95,6 +95,7 @@ function mergeChallengeCatalog(saved: Challenge[] | undefined, seed: Challenge[]
             ...seedChallenge,
             completed: prev.completed,
             completedAt: prev.completedAt,
+            proofDataUrl: prev.proofDataUrl,
           }
         : { ...seedChallenge };
     })
@@ -131,14 +132,21 @@ export const useStore = create<AppState>()(
         set({ language: lang });
       },
       setActiveTab: (tab) => set({ activeTab: tab }),
-      completeChallenge: (id) =>
+      completeChallenge: (id, proofDataUrl) =>
         set((s) => {
           const target = s.challenges.find((c) => c.id === id);
           if (!target || target.completed) return s;
+          // Non-sleep challenges need a proof photo.
+          if (target.tracker !== 'sleep' && !proofDataUrl) return s;
           return {
             challenges: s.challenges.map((c) =>
               c.id === id
-                ? { ...c, completed: true, completedAt: Date.now() }
+                ? {
+                    ...c,
+                    completed: true,
+                    completedAt: Date.now(),
+                    ...(proofDataUrl ? { proofDataUrl } : {}),
+                  }
                 : c
             ),
             user: {
@@ -216,8 +224,10 @@ export const useStore = create<AppState>()(
         };
         const freshCheckIns = s.checkIns.map((c) => ({
           ...c,
+          mood: 0,
           screenTime: 0,
           sleep: 0,
+          socialBattery: 0,
           score: 0,
           completed: false,
         }));

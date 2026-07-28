@@ -15,6 +15,7 @@ export default function ScoreHistory({ isOpen, onClose }: Props) {
     .map((c) => ({
       date: new Date(c.date).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
       score: c.score,
+      mood: c.mood,
       sleep: c.sleep,
     }));
 

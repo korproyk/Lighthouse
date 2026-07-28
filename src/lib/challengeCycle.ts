@@ -13,12 +13,18 @@ export function refreshChallengeCompletion(
   now = Date.now()
 ): Challenge {
   if (!challenge.completed) {
-    return challenge.completedAt ? { ...challenge, completedAt: undefined } : challenge;
+    if (!challenge.completedAt && !challenge.proofDataUrl) return challenge;
+    return { ...challenge, completedAt: undefined, proofDataUrl: undefined };
   }
   const stamped = challenge.completedAt;
   // Legacy completions (no stamp) expire immediately so they can be redone.
   if (stamped == null || now - stamped >= CHALLENGE_CYCLE_MS) {
-    return { ...challenge, completed: false, completedAt: undefined };
+    return {
+      ...challenge,
+      completed: false,
+      completedAt: undefined,
+      proofDataUrl: undefined,
+    };
   }
   return challenge;
 }

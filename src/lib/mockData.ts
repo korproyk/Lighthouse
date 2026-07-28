@@ -1,7 +1,9 @@
 export interface CheckIn {
   date: string;
+  mood: number;
   screenTime: number;
   sleep: number;
+  socialBattery: number;
   score: number;
   completed: boolean;
 }
@@ -19,6 +21,8 @@ export interface Challenge {
   completed?: boolean;
   /** When the challenge was marked done — used for the 2-week redo window. */
   completedAt?: number;
+  /** Compressed JPEG data URL of user proof photo (local only). */
+  proofDataUrl?: string;
   // Required quests are pinned above the list and ignore the pack/difficulty
   // filters. `tracker` marks a quest that is measured by the app instead of
   // being self-reported with a Done button.
@@ -84,20 +88,20 @@ export const userProfile = {
 };
 
 export const checkIns: CheckIn[] = [
-  { date: daysAgo(13), screenTime: 5.2, sleep: 6.5, score: 58, completed: true },
-  { date: daysAgo(12), screenTime: 4.1, sleep: 7.0, score: 62, completed: true },
-  { date: daysAgo(11), screenTime: 6.0, sleep: 5.5, score: 55, completed: true },
-  { date: daysAgo(10), screenTime: 3.8, sleep: 7.5, score: 67, completed: true },
-  { date: daysAgo(9), screenTime: 3.2, sleep: 8.0, score: 72, completed: true },
-  { date: daysAgo(8), screenTime: 4.5, sleep: 7.0, score: 65, completed: true },
-  { date: daysAgo(7), screenTime: 5.5, sleep: 6.0, score: 58, completed: true },
-  { date: daysAgo(6), screenTime: 3.5, sleep: 7.5, score: 69, completed: true },
-  { date: daysAgo(5), screenTime: 2.8, sleep: 8.0, score: 74, completed: true },
-  { date: daysAgo(4), screenTime: 4.0, sleep: 7.0, score: 68, completed: true },
-  { date: daysAgo(3), screenTime: 3.2, sleep: 7.5, score: 71, completed: true },
-  { date: daysAgo(2), screenTime: 2.5, sleep: 8.0, score: 76, completed: true },
-  { date: daysAgo(1), screenTime: 3.0, sleep: 7.5, score: 73, completed: true },
-  { date: daysAgo(0), screenTime: 0, sleep: 0, score: 73, completed: false },
+  { date: daysAgo(13), mood: 3, screenTime: 5.2, sleep: 6.5, socialBattery: 45, score: 58, completed: true },
+  { date: daysAgo(12), mood: 4, screenTime: 4.1, sleep: 7.0, socialBattery: 60, score: 62, completed: true },
+  { date: daysAgo(11), mood: 3, screenTime: 6.0, sleep: 5.5, socialBattery: 35, score: 55, completed: true },
+  { date: daysAgo(10), mood: 4, screenTime: 3.8, sleep: 7.5, socialBattery: 70, score: 67, completed: true },
+  { date: daysAgo(9), mood: 4, screenTime: 3.2, sleep: 8.0, socialBattery: 80, score: 72, completed: true },
+  { date: daysAgo(8), mood: 4, screenTime: 4.5, sleep: 7.0, socialBattery: 55, score: 65, completed: true },
+  { date: daysAgo(7), mood: 3, screenTime: 5.5, sleep: 6.0, socialBattery: 40, score: 58, completed: true },
+  { date: daysAgo(6), mood: 4, screenTime: 3.5, sleep: 7.5, socialBattery: 65, score: 69, completed: true },
+  { date: daysAgo(5), mood: 4, screenTime: 2.8, sleep: 8.0, socialBattery: 75, score: 74, completed: true },
+  { date: daysAgo(4), mood: 4, screenTime: 4.0, sleep: 7.0, socialBattery: 60, score: 68, completed: true },
+  { date: daysAgo(3), mood: 4, screenTime: 3.2, sleep: 7.5, socialBattery: 70, score: 71, completed: true },
+  { date: daysAgo(2), mood: 4, screenTime: 2.5, sleep: 8.0, socialBattery: 80, score: 76, completed: true },
+  { date: daysAgo(1), mood: 4, screenTime: 3.0, sleep: 7.5, socialBattery: 65, score: 73, completed: true },
+  { date: daysAgo(0), mood: 0, screenTime: 0, sleep: 0, socialBattery: 0, score: 73, completed: false },
 ];
 
 export const challenges: Challenge[] = [
@@ -290,15 +294,15 @@ export const badges: Badge[] = [
 
 export const healthClusters: HealthCluster[] = [
   { id: 'h1', lat: 37.5665, lng: 126.9780, city: 'Jung-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.9, count: 203 },
-  { id: 'h2', lat: 37.5172, lng: 127.0473, city: 'Gangnam-gu, Seoul', symptom: 'FOMO', intensity: 0.7, count: 156 },
-  { id: 'h3', lat: 37.5443, lng: 127.0557, city: 'Seongdong-gu, Seoul', symptom: 'Sleep Loss', intensity: 0.6, count: 98 },
-  { id: 'h4', lat: 37.5384, lng: 126.9654, city: 'Yongsan-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.75, count: 134 },
-  { id: 'h5', lat: 37.4979, lng: 127.0276, city: 'Seocho-gu, Seoul', symptom: 'FOMO', intensity: 0.55, count: 87 },
-  { id: 'h6', lat: 37.5558, lng: 126.9369, city: 'Mapo-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.65, count: 112 },
-  { id: 'h7', lat: 37.4563, lng: 126.7052, city: 'Incheon', symptom: 'Sleep Loss', intensity: 0.8, count: 172 },
-  { id: 'h8', lat: 37.2636, lng: 127.0286, city: 'Suwon', symptom: 'Doomscrolling', intensity: 0.5, count: 76 },
-  { id: 'h9', lat: 35.1796, lng: 129.0756, city: 'Busan', symptom: 'Screen Fatigue', intensity: 0.7, count: 143 },
-  { id: 'h10', lat: 35.8714, lng: 128.6014, city: 'Daegu', symptom: 'FOMO', intensity: 0.4, count: 62 },
+  { id: 'h2', lat: 37.5172, lng: 127.0473, city: 'Gangnam-gu, Seoul', symptom: 'FOMO', intensity: 0.72, count: 156 },
+  { id: 'h3', lat: 37.5443, lng: 127.0557, city: 'Seongdong-gu, Seoul', symptom: 'Sleep Loss', intensity: 0.58, count: 98 },
+  { id: 'h4', lat: 37.5384, lng: 126.9654, city: 'Yongsan-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.78, count: 134 },
+  { id: 'h5', lat: 37.4979, lng: 127.0276, city: 'Seocho-gu, Seoul', symptom: 'FOMO', intensity: 0.42, count: 87 },
+  { id: 'h6', lat: 37.5558, lng: 126.9369, city: 'Mapo-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.55, count: 112 },
+  { id: 'h7', lat: 37.4563, lng: 126.7052, city: 'Incheon', symptom: 'Sleep Loss', intensity: 0.85, count: 172 },
+  { id: 'h8', lat: 37.2636, lng: 127.0286, city: 'Suwon', symptom: 'Doomscrolling', intensity: 0.35, count: 76 },
+  { id: 'h9', lat: 35.1796, lng: 129.0756, city: 'Busan', symptom: 'Screen Fatigue', intensity: 0.68, count: 143 },
+  { id: 'h10', lat: 35.8714, lng: 128.6014, city: 'Daegu', symptom: 'FOMO', intensity: 0.48, count: 62 },
 ];
 
 // Places that help you put the phone down: quiet screen-free rooms, outdoor

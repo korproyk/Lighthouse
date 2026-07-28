@@ -2,14 +2,13 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import L from 'leaflet';
 import {
-  Heart, MapPin, Calendar, Send, GraduationCap,
-  Trees, HeartHandshake, Plus, Minus, Loader2, ShieldCheck,
-  Search, SlidersHorizontal, Crosshair, Smile, WifiOff,
+  Heart, MapPin, Calendar, Send,
+  Plus, Minus, Loader2, ShieldCheck,
+  Search, SlidersHorizontal, Crosshair,
 } from 'lucide-react';
 import { t } from '../lib/i18n';
 import {
   communityWins, accountabilityPartner, volunteerEvents, healthClusters,
-  nearbyPlaces, type PlaceCategory,
 } from '../lib/mockData';
 import { api, type HealthReportRow } from '../lib/supabase';
 import BottomSheet from '../components/BottomSheet';
@@ -242,6 +241,48 @@ const symptomColors: Record<string, string> = {
   Other: '#63C5B2',
 };
 
+type AlertLevel = 'normal' | 'slight' | 'watch' | 'warning';
+type MapFilterKey = 'all' | AlertLevel;
+
+const alertLevels: {
+  key: AlertLevel;
+  label: string;
+  shortLabel: string;
+  color: string;
+  emoji: string;
+  min: number;
+}[] = [
+  { key: 'normal', label: 'Normal', shortLabel: 'Normal', color: '#22C55E', emoji: '🟢', min: 0 },
+  { key: 'slight', label: 'Slight Increase', shortLabel: 'Slight', color: '#EAB308', emoji: '🟡', min: 0.5 },
+  { key: 'watch', label: 'Watch', shortLabel: 'Watch', color: '#F97316', emoji: '🟠', min: 0.65 },
+  { key: 'warning', label: 'Early Warning', shortLabel: 'Warning', color: '#EF4444', emoji: '🔴', min: 0.8 },
+];
+
+function alertLevelFromIntensity(intensity: number): AlertLevel {
+  if (intensity >= 0.8) return 'warning';
+  if (intensity >= 0.65) return 'watch';
+  if (intensity >= 0.5) return 'slight';
+  return 'normal';
+}
+
+function alertMeta(level: AlertLevel) {
+  return alertLevels.find((a) => a.key === level) ?? alertLevels[0];
+}
+
+const mapFilters: { key: MapFilterKey; label: string; color: string; emoji?: string }[] = [
+  { key: 'all', label: 'All', color: '#FF7A45' },
+  ...alertLevels.map((a) => ({
+    key: a.key as MapFilterKey,
+    label: a.label,
+    color: a.color,
+    emoji: a.emoji,
+  })),
+];
+
+// Simple filled-circle glyph inside the pin head
+const alertPinGlyph =
+  '<circle cx="12" cy="12" r="6.5" fill="#FFFFFF" stroke="none"/>';
+
 const seoulNeighborhoods = [
   { name: 'Jongno-gu, Seoul', lat: 37.5735, lng: 126.9788 },
   { name: 'Gangnam-gu, Seoul', lat: 37.5172, lng: 127.0473 },
@@ -254,48 +295,6 @@ const seoulNeighborhoods = [
   { name: 'Eunpyeong-gu, Seoul', lat: 37.6026, lng: 126.9291 },
   { name: 'Dongdaemun-gu, Seoul', lat: 37.5744, lng: 127.0396 },
 ];
-
-type MapFilterKey = 'all' | 'checkins' | PlaceCategory;
-
-const mapFilters: { key: MapFilterKey; label: string; icon?: React.ElementType; color: string }[] = [
-  { key: 'all', label: 'All', color: '#FF7A45' },
-  { key: 'checkins', label: 'Check-ins', icon: Smile, color: '#FF8A3D' },
-  { key: 'screenfree', label: 'Offline', icon: WifiOff, color: '#3B82F6' },
-  { key: 'outdoors', label: 'Outdoors', icon: Trees, color: '#34C77B' },
-  { key: 'skills', label: 'Skills', icon: GraduationCap, color: '#8E7CC3' },
-  { key: 'support', label: 'Support', icon: HeartHandshake, color: '#FF4D6A' },
-];
-
-const placeColors: Record<PlaceCategory, string> = {
-  screenfree: '#3B82F6',
-  outdoors: '#34C77B',
-  skills: '#8E7CC3',
-  support: '#FF4D6A',
-};
-
-const placeLabels: Record<PlaceCategory, string> = {
-  screenfree: 'Screen-free spot',
-  outdoors: 'Outdoors',
-  skills: 'Skill workshop',
-  support: 'Support group',
-};
-
-// Glyphs are drawn in a 24x24 box and scaled down inside the pin head.
-const pinGlyphs: Record<'checkin' | PlaceCategory, string> = {
-  checkin:
-    '<circle cx="12" cy="12" r="8.4"/><path d="M8.4 14.2s1.4 2.1 3.6 2.1 3.6-2.1 3.6-2.1"/>' +
-    '<path d="M9.3 9.6h.01"/><path d="M14.7 9.6h.01"/>',
-  screenfree: '<rect x="8.4" y="3.6" width="7.2" height="16.8" rx="2.2"/><path d="M4.4 4.2l15.2 15.6"/>',
-  outdoors:
-    '<path d="M12 3.2l4.6 6.6H7.4z" fill="#FFFFFF" stroke="none"/>' +
-    '<path d="M12 8.2l6 8.2H6z" fill="#FFFFFF" stroke="none"/><path d="M12 16.4v4.2"/>',
-  skills:
-    '<path d="M2.8 9.2L12 5l9.2 4.2L12 13.4z" fill="#FFFFFF" stroke="none"/>' +
-    '<path d="M7 11.6v4.2c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-4.2"/>',
-  support:
-    '<path d="M12 20.2s-7.2-4.5-7.2-9.4a3.9 3.9 0 0 1 7.2-2.1 3.9 3.9 0 0 1 7.2 2.1c0 4.9-7.2 9.4-7.2 9.4z" ' +
-    'fill="#FFFFFF" stroke="none"/>',
-};
 
 const radiusOptions = [
   { km: 0, label: 'Anywhere' },
@@ -371,66 +370,53 @@ function MapView() {
       lat: c.lat,
       lng: c.lng,
       count: c.count,
+      intensity: c.intensity,
+      alert: alertLevelFromIntensity(c.intensity),
       note: '',
       created_at: '',
       live: false,
     }));
-    const live = reports.map((r) => ({
-      id: r.id,
-      symptom: r.symptom,
-      city: r.city,
-      lat: r.lat,
-      lng: r.lng,
-      count: 1,
-      note: r.note,
-      created_at: r.created_at,
-      live: true,
-    }));
+    const live = reports.map((r) => {
+      const intensity = 0.55;
+      return {
+        id: r.id,
+        symptom: r.symptom,
+        city: r.city,
+        lat: r.lat,
+        lng: r.lng,
+        count: 1,
+        intensity,
+        alert: alertLevelFromIntensity(intensity),
+        note: r.note,
+        created_at: r.created_at,
+        live: true,
+      };
+    });
     return [...baseline, ...live].filter(
       (c) =>
         withinKm(c.lat, c.lng, radiusKm) &&
         (!search ||
           c.city.toLowerCase().includes(search) ||
-          c.symptom.toLowerCase().includes(search)),
+          c.symptom.toLowerCase().includes(search) ||
+          alertMeta(c.alert).label.toLowerCase().includes(search)),
     );
   }, [reports, radiusKm, search]);
 
-  const places = useMemo(
-    () =>
-      nearbyPlaces.filter(
-        (p) =>
-          withinKm(p.lat, p.lng, radiusKm) &&
-          (!search ||
-            p.name.toLowerCase().includes(search) ||
-            p.detail.toLowerCase().includes(search) ||
-            placeLabels[p.category].toLowerCase().includes(search)),
-      ),
-    [radiusKm, search],
-  );
-
   const visibleCheckIns = useMemo(
-    () => (filter === 'all' || filter === 'checkins' ? checkIns : []),
+    () => (filter === 'all' ? checkIns : checkIns.filter((c) => c.alert === filter)),
     [filter, checkIns],
   );
 
-  const visiblePlaces = useMemo(
-    () => (filter === 'all' ? places : places.filter((p) => p.category === filter)),
-    [filter, places],
-  );
-
-  const summaryTiles = [
-    {
-      key: 'checkins' as MapFilterKey,
-      label: 'Check-ins',
-      value: compactNumber(checkIns.reduce((sum, c) => sum + c.count, 0)),
-      icon: Smile,
-      color: '#FF8A3D',
-    },
-    { key: 'screenfree' as MapFilterKey, label: 'Offline', value: String(places.filter((p) => p.category === 'screenfree').length), icon: WifiOff, color: '#3B82F6' },
-    { key: 'outdoors' as MapFilterKey, label: 'Outdoors', value: String(places.filter((p) => p.category === 'outdoors').length), icon: Trees, color: '#34C77B' },
-    { key: 'skills' as MapFilterKey, label: 'Skills', value: String(places.filter((p) => p.category === 'skills').length), icon: GraduationCap, color: '#8E7CC3' },
-    { key: 'support' as MapFilterKey, label: 'Support', value: String(places.filter((p) => p.category === 'support').length), icon: HeartHandshake, color: '#FF4D6A' },
-  ];
+  const summaryTiles = alertLevels.map((level) => {
+    const rows = checkIns.filter((c) => c.alert === level.key);
+    return {
+      key: level.key as MapFilterKey,
+      label: level.shortLabel,
+      value: compactNumber(rows.reduce((sum, c) => sum + c.count, 0)),
+      color: level.color,
+      emoji: level.emoji,
+    };
+  });
 
   // Init map once
   useEffect(() => {
@@ -479,8 +465,8 @@ function MapView() {
     layerRef.current.clearLayers();
 
     visibleCheckIns.forEach((c) => {
-      const color = symptomColors[c.symptom] ?? symptomColors.Other;
-      const marker = L.marker([c.lat, c.lng], { icon: makePinIcon(color, pinGlyphs.checkin) });
+      const meta = alertMeta(c.alert);
+      const marker = L.marker([c.lat, c.lng], { icon: makePinIcon(meta.color, alertPinGlyph) });
 
       const when = c.created_at
         ? new Date(c.created_at).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -492,30 +478,15 @@ function MapView() {
 
       marker.bindPopup(
         `<div style="font-family:'Plus Jakarta Sans',sans-serif">` +
-          `<div style="font-weight:700;color:${color};font-size:12px;text-transform:uppercase;letter-spacing:.08em">${escapeHtml(c.symptom)}</div>` +
+          `<div style="font-weight:700;color:${meta.color};font-size:12px;text-transform:uppercase;letter-spacing:.08em">${meta.emoji} ${meta.label}</div>` +
           `<div style="font-weight:700;font-size:14px;margin-top:2px">${escapeHtml(c.city)}</div>` +
+          `<div style="font-size:11px;margin-top:4px;opacity:.8">${escapeHtml(c.symptom)}</div>` +
           suffix +
           `</div>`,
       );
       marker.addTo(layerRef.current!);
     });
-
-    visiblePlaces.forEach((p) => {
-      const color = placeColors[p.category];
-      const marker = L.marker([p.lat, p.lng], { icon: makePinIcon(color, pinGlyphs[p.category]) });
-
-      const away = distanceKm(youLocation.lat, youLocation.lng, p.lat, p.lng);
-      marker.bindPopup(
-        `<div style="font-family:'Plus Jakarta Sans',sans-serif">` +
-          `<div style="font-weight:700;color:${color};font-size:12px;text-transform:uppercase;letter-spacing:.08em">${placeLabels[p.category]}</div>` +
-          `<div style="font-weight:700;font-size:14px;margin-top:2px">${escapeHtml(p.name)}</div>` +
-          `<div style="font-size:11px;margin-top:4px">${escapeHtml(p.detail)}</div>` +
-          `<div style="font-size:10px;opacity:.7;margin-top:4px">${away.toFixed(1)} km from you</div>` +
-          `</div>`,
-      );
-      marker.addTo(layerRef.current!);
-    });
-  }, [visibleCheckIns, visiblePlaces]);
+  }, [visibleCheckIns]);
 
   const handleSubmit = async (payload: { symptom: string; note: string; locationName: string; lat: number; lng: number }) => {
     const { data, error } = await api.healthReports.insert({
@@ -541,32 +512,20 @@ function MapView() {
 
   return (
     <div className="mt-4">
-      {/* Category chips */}
+      {/* Alert-level chips */}
       <div className="px-6 flex gap-2 overflow-x-auto scrollbar-none mb-3">
         {mapFilters.map((f) => {
-          const Icon = f.icon;
           const active = filter === f.key;
           return (
             <motion.button
               key={f.key}
               className={`whitespace-nowrap py-1.5 rounded-capsule text-caption font-bold flex items-center gap-1.5 ${
-                Icon ? 'pl-1.5 pr-3.5' : 'px-4'
+                f.emoji ? 'pl-2 pr-3.5' : 'px-4'
               } ${active ? 'hero-glow text-white shadow-soft' : 'glass text-ink-700 dark:text-ink-200'}`}
               whileTap={{ scale: 0.97 }}
               onClick={() => setFilter(f.key)}
             >
-              {Icon && (
-                <span
-                  className="w-6 h-6 rounded-[9px] flex items-center justify-center shrink-0"
-                  style={{ background: active ? 'rgba(255,255,255,0.24)' : `${f.color}1F` }}
-                >
-                  <Icon
-                    size={13}
-                    strokeWidth={2.6}
-                    style={{ color: active ? '#FFFFFF' : f.color }}
-                  />
-                </span>
-              )}
+              {f.emoji && <span className="text-[13px] leading-none">{f.emoji}</span>}
               {f.label}
             </motion.button>
           );
@@ -581,7 +540,7 @@ function MapView() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={'Search offline spots nearby\u2026'}
+            placeholder={'Search neighborhoods\u2026'}
             className="flex-1 min-w-0 bg-transparent py-3 text-caption text-ink-900 dark:text-ink-100 placeholder:text-ink-300 focus:outline-none"
           />
           <span className="w-px h-5 bg-ink-900/10 dark:bg-white/10 shrink-0" />
@@ -599,20 +558,18 @@ function MapView() {
         </div>
       </div>
 
-      {/* Struggle colour key — only relevant while looking at check-ins */}
-      {filter === 'checkins' && (
-        <div className="px-6 mb-3 flex flex-wrap gap-x-3 gap-y-1">
-          {Object.entries(symptomColors).map(([sym, color]) => (
-            <span
-              key={sym}
-              className="flex items-center gap-1.5 text-[10px] font-bold text-ink-600 dark:text-ink-300"
-            >
-              <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-              {sym}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Alert colour key */}
+      <div className="px-6 mb-3 flex flex-wrap gap-x-3 gap-y-1">
+        {alertLevels.map((level) => (
+          <span
+            key={level.key}
+            className="flex items-center gap-1.5 text-[10px] font-bold text-ink-600 dark:text-ink-300"
+          >
+            <span className="w-2 h-2 rounded-full" style={{ background: level.color }} />
+            {level.label}
+          </span>
+        ))}
+      </div>
 
       {/* Map */}
       <div className="mx-6 relative rounded-hero overflow-hidden shadow-soft" style={{ height: 340 }}>
@@ -677,9 +634,8 @@ function MapView() {
           </span>
         </div>
 
-        <div className="relative mt-3 grid grid-cols-5 gap-1.5">
+        <div className="relative mt-3 grid grid-cols-4 gap-1.5">
           {summaryTiles.map((tile) => {
-            const Icon = tile.icon;
             const active = filter === tile.key;
             return (
               <motion.button
@@ -689,10 +645,10 @@ function MapView() {
                 onClick={() => setFilter(active ? 'all' : tile.key)}
               >
                 <span
-                  className="mx-auto w-7 h-7 rounded-[10px] flex items-center justify-center shadow-soft"
+                  className="mx-auto w-7 h-7 rounded-[10px] flex items-center justify-center shadow-soft text-[13px]"
                   style={{ background: `linear-gradient(135deg, ${tile.color}, ${tile.color}cc)` }}
                 >
-                  <Icon size={14} className="text-white" strokeWidth={2.5} />
+                  {tile.emoji}
                 </span>
                 <p className="mt-1.5 font-display font-bold text-body text-ink-900 dark:text-ink-100 leading-none">
                   {tile.value}
@@ -773,7 +729,7 @@ function MapView() {
             whileTap={{ scale: 0.97 }}
             onClick={() => setShowFilterSheet(false)}
           >
-            Show {visibleCheckIns.length + visiblePlaces.length} pins
+            Show {visibleCheckIns.length} pin{visibleCheckIns.length === 1 ? '' : 's'}
           </motion.button>
         </div>
       </BottomSheet>

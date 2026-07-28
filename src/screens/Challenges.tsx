@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Star, Check, Moon } from 'lucide-react';
+import { Clock, Star, Check, Moon, Camera, ImagePlus, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
@@ -14,6 +14,7 @@ import {
   challengeCycleEpoch,
   orderChallengesForList,
 } from '../lib/challengeCycle';
+import { compressProofPhoto } from '../lib/proofPhoto';
 
 const podiumBadges: Record<1 | 2 | 3, { src: string; alt: string; bar: string }> = {
   1: {
@@ -60,6 +61,10 @@ export default function Challenges() {
   const [activeDifficulty, setActiveDifficulty] = useState<typeof difficulties[number] | null>(null);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [showComplete, setShowComplete] = useState(false);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [proofBusy, setProofBusy] = useState(false);
+  const [proofError, setProofError] = useState<string | null>(null);
+  const proofInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     refreshExpiredChallenges();
@@ -84,12 +89,18 @@ export default function Challenges() {
   }, []);
 
   const handleComplete = (id: string) => {
-    completeChallenge(id);
+    if (!proofPreview) {
+      setProofError('Add a photo to prove you did it.');
+      return;
+    }
+    completeChallenge(id, proofPreview);
     triggerConfetti();
     setShowComplete(true);
     completeTimeoutRef.current = setTimeout(() => {
       setSelectedChallenge(null);
       setShowComplete(false);
+      setProofPreview(null);
+      setProofError(null);
     }, 1800);
   };
 
@@ -100,6 +111,28 @@ export default function Challenges() {
     }
     setSelectedChallenge(null);
     setShowComplete(false);
+    setProofPreview(null);
+    setProofError(null);
+    setProofBusy(false);
+  };
+
+  const handleProofPicked = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setProofError('Please choose a photo.');
+      return;
+    }
+    setProofBusy(true);
+    setProofError(null);
+    try {
+      const dataUrl = await compressProofPhoto(file);
+      setProofPreview(dataUrl);
+    } catch {
+      setProofError('Could not read that photo. Try another.');
+    } finally {
+      setProofBusy(false);
+      if (proofInputRef.current) proofInputRef.current.value = '';
+    }
   };
 
   return (
@@ -204,6 +237,15 @@ export default function Challenges() {
             <p className="text-body text-ink-600 dark:text-ink-300 selectable">
               {selectedChallenge.instructions}
             </p>
+
+            <input
+              ref={proofInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleProofPicked(e.target.files?.[0] ?? null)}
+            />
+
             <AnimatePresence mode="wait">
               {showComplete ? (
                 <motion.div key="done" className="text-center py-6" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }}>
@@ -211,14 +253,67 @@ export default function Challenges() {
                   <p className="mt-3 font-display font-bold text-title text-mint-700 dark:text-mint-300">Amazing work! {'\u{1F31F}'}</p>
                 </motion.div>
               ) : (
-                <motion.button
-                  key="btn"
-                  className="w-full py-4 rounded-capsule hero-glow text-white font-display font-bold text-title shadow-medium"
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => handleComplete(selectedChallenge.id)}
-                >
-                  Done! {'\u2728'}
-                </motion.button>
+                <motion.div key="proof" className="space-y-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <div>
+                    <p className="text-micro uppercase tracking-[0.14em] font-bold text-ink-600 dark:text-ink-300 mb-2">
+                      Proof photo
+                    </p>
+                    {proofPreview ? (
+                      <div className="relative overflow-hidden rounded-hero">
+                        <img
+                          src={proofPreview}
+                          alt="Challenge proof"
+                          className="w-full max-h-56 object-cover"
+                        />
+                        <button
+                          type="button"
+                          className="absolute top-3 right-3 w-9 h-9 rounded-full glass-strong flex items-center justify-center"
+                          onClick={() => setProofPreview(null)}
+                          aria-label="Remove photo"
+                        >
+                          <X size={16} className="text-ink-900 dark:text-ink-100" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full p-5 rounded-hero glass border border-dashed border-ink-200 dark:border-night-500 text-center"
+                        onClick={() => proofInputRef.current?.click()}
+                        disabled={proofBusy}
+                      >
+                        <div className="mx-auto w-11 h-11 rounded-full hero-glow shadow-soft flex items-center justify-center mb-2">
+                          {proofBusy ? (
+                            <Camera size={18} className="text-white animate-pulse" />
+                          ) : (
+                            <ImagePlus size={18} className="text-white" />
+                          )}
+                        </div>
+                        <p className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                          {proofBusy ? 'Preparing photo…' : 'Add a photo'}
+                        </p>
+                        <p className="mt-1 text-caption text-ink-300">
+                          Snap or pick a pic that shows you did this.
+                        </p>
+                      </button>
+                    )}
+                    {proofError && (
+                      <p className="mt-2 text-caption text-coral-500 font-semibold">{proofError}</p>
+                    )}
+                  </div>
+
+                  <motion.button
+                    className={`w-full py-4 rounded-capsule font-display font-bold text-title shadow-medium ${
+                      proofPreview
+                        ? 'hero-glow text-white'
+                        : 'glass text-ink-300 cursor-not-allowed'
+                    }`}
+                    whileTap={proofPreview ? { scale: 0.97 } : undefined}
+                    disabled={!proofPreview || proofBusy}
+                    onClick={() => handleComplete(selectedChallenge.id)}
+                  >
+                    Done! {'\u2728'}
+                  </motion.button>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
@@ -440,8 +535,18 @@ function ChallengesView({
                 <p className="text-caption text-ink-600 dark:text-ink-300 mt-1">{challenge.description}</p>
               </div>
               {challenge.completed && (
-                <div className="w-8 h-8 rounded-full bg-mint-500 flex items-center justify-center ml-3 flex-shrink-0 shadow-soft">
-                  <Check size={16} className="text-white" strokeWidth={3} />
+                <div className="ml-3 flex-shrink-0 flex flex-col items-end gap-2">
+                  {challenge.proofDataUrl ? (
+                    <img
+                      src={challenge.proofDataUrl}
+                      alt=""
+                      className="w-14 h-14 rounded-[14px] object-cover shadow-soft ring-2 ring-white/70 dark:ring-night-700"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-mint-500 flex items-center justify-center shadow-soft">
+                      <Check size={16} className="text-white" strokeWidth={3} />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
