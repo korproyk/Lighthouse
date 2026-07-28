@@ -58,7 +58,7 @@ export default function ScoreLadderSheet({ isOpen, onClose, score }: Props) {
         </p>
 
         <div className="space-y-2">
-          {SCORE_LADDER.map((tier, i) => {
+          {[...SCORE_LADDER].reverse().map((tier, i) => {
             const isCurrent = tier.id === current.id;
             const unlocked = score > tier.above || tier.id === 'balance';
             return (
@@ -89,7 +89,7 @@ export default function ScoreLadderSheet({ isOpen, onClose, score }: Props) {
                     className="font-display font-bold text-caption"
                     style={{ color: unlocked ? '#fff' : undefined }}
                   >
-                    {SCORE_LADDER.length - i}
+                    {i + 1}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
