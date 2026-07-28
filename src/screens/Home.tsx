@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Moon, Smartphone, Zap, TrendingUp, Sparkles, Target, ArrowRight, GraduationCap, Clock, Users } from 'lucide-react';
+import { Flame, Zap, TrendingUp, Sparkles, Target, ArrowRight, GraduationCap, Clock, Users } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import ScoreRing, { scoreRingColor } from '../components/ScoreRing';
@@ -94,15 +94,8 @@ export default function Home() {
   const [ladderOpen, setLadderOpen] = useState(false);
 
   const last7 = checkIns.slice(-7);
-  const yesterdayCheckIn = checkIns[checkIns.length - 2];
 
   const todayChallenge = challenges.find((c) => !c.completed);
-
-  const screenTimeColor = yesterdayCheckIn && yesterdayCheckIn.screenTime <= 3
-    ? 'text-mint-500'
-    : yesterdayCheckIn && yesterdayCheckIn.screenTime <= 5
-      ? 'text-lighthouse-500'
-      : 'text-coral-500';
 
   const maxScore = Math.max(...last7.map((d) => d.score || 0), 80);
 
@@ -294,37 +287,6 @@ export default function Home() {
           </motion.button>
         </div>
       )}
-
-      {/* Quick Stats — sleep & screen from yesterday */}
-      <div className="px-6 mt-6">
-        <div className="grid grid-cols-2 gap-3">
-          <motion.div
-            className="p-4 rounded-card glass shadow-soft"
-            whileTap={{ scale: 0.97 }}
-          >
-            <div className="flex items-center gap-2">
-              <Moon size={16} className="text-ocean-500" />
-              <span className="text-caption text-ink-600 dark:text-ink-300">{t('home.sleep')}</span>
-            </div>
-            <p className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 mt-2">
-              {yesterdayCheckIn?.sleep ?? '--'}h
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="p-4 rounded-card glass shadow-soft"
-            whileTap={{ scale: 0.97 }}
-          >
-            <div className="flex items-center gap-2">
-              <Smartphone size={16} className={screenTimeColor} />
-              <span className="text-caption text-ink-600 dark:text-ink-300">{t('home.screen_time')}</span>
-            </div>
-            <p className={`font-display font-bold text-display-l mt-2 ${screenTimeColor}`}>
-              {yesterdayCheckIn?.screenTime ?? '--'}h
-            </p>
-          </motion.div>
-        </div>
-      </div>
 
       {/* Learn something new */}
       <LearnSomethingNew />

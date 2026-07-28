@@ -11,7 +11,6 @@ import LightBotChat from './screens/LightBot';
 import Community from './screens/Community';
 import Profile from './screens/Profile';
 import BottomSheet from './components/BottomSheet';
-import EveningCheckIn from './components/EveningCheckIn';
 import ScoreHistory from './components/ScoreHistory';
 
 const screens = [Home, Challenges, null, Community, Profile];
@@ -21,7 +20,6 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [lightBotOpen, setLightBotOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-  const [checkInOpen, setCheckInOpen] = useState(false);
   const [scoreHistoryOpen, setScoreHistoryOpen] = useState(false);
 
   useEffect(() => {
@@ -135,7 +133,6 @@ export default function App() {
         </div>
       </BottomSheet>
 
-      <EveningCheckIn isOpen={checkInOpen} onClose={() => setCheckInOpen(false)} />
       <ScoreHistory isOpen={scoreHistoryOpen} onClose={() => setScoreHistoryOpen(false)} />
 
       {/* Easter egg */}
