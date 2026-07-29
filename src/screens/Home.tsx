@@ -141,7 +141,7 @@ export default function Home() {
         ) : (
           <motion.button
             type="button"
-            className="relative w-full overflow-hidden p-4 rounded-hero hero-glow text-left shadow-medium shine"
+            className="relative w-full overflow-hidden px-4 py-3.5 rounded-hero hero-glow text-left shadow-medium shine"
             whileTap={{ scale: 0.98 }}
             onClick={() => setCheckInOpen(true)}
           >
@@ -154,11 +154,18 @@ export default function Home() {
                 <ClipboardCheck size={20} className="text-white" strokeWidth={2.5} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-display font-bold text-title text-white">
-                  Daily check-in · ~30 sec
-                </p>
-                <p className="text-caption text-white/90 mt-0.5">
-                  Mood · Sleep · Screen time · Social battery
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-display font-bold text-title text-white leading-none">
+                    Daily check-in
+                  </p>
+                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-capsule bg-white/25 text-[11px] font-semibold text-white leading-none whitespace-nowrap">
+                    ~30 sec
+                  </span>
+                </div>
+                <p className="text-caption text-white/90 mt-1.5 tracking-wide">
+                  Mood <span className="opacity-50">|</span> Sleep{' '}
+                  <span className="opacity-50">|</span> Screen time{' '}
+                  <span className="opacity-50">|</span> Social battery
                 </p>
               </div>
               <ArrowRight size={18} className="text-white shrink-0" strokeWidth={2.5} />
@@ -239,9 +246,9 @@ export default function Home() {
                   src="/images/character-2.png"
                   alt=""
                   draggable={false}
-                  className="w-[78px] h-auto object-contain shrink-0 -mt-1 -mr-1 drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
+                  className="w-[58px] h-auto object-contain shrink-0 -mr-0.5 drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
                   initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: [0, -4, 0] }}
+                  animate={{ opacity: 1, y: [0, -3, 0] }}
                   transition={{
                     opacity: { duration: 0.35 },
                     y: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
@@ -249,16 +256,18 @@ export default function Home() {
                 />
               </div>
 
-              <p className="mt-2 flex items-center gap-1.5 whitespace-nowrap font-display font-bold text-caption text-coral-600 dark:text-coral-300">
-                <Flame size={13} className="text-coral-500 shrink-0" fill="currentColor" />
-                {user.currentStreak}-day streak
-              </p>
+              <div className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1 rounded-capsule bg-coral-500/10 border border-coral-500/20 whitespace-nowrap">
+                <Flame size={12} className="text-coral-500 shrink-0" fill="currentColor" />
+                <span className="text-caption font-bold text-coral-600 dark:text-coral-300 leading-none">
+                  {user.currentStreak}-day streak
+                </span>
+              </div>
 
-              <div className="mt-3 flex items-end gap-1.5 h-11">
+              <div className="mt-2.5 flex items-end gap-1.5 h-8">
                 {streakSlots.map((slot, i) => {
                   const h = slot.filled
-                    ? Math.max(36, (slot.score / maxStreakScore) * 100)
-                    : 22;
+                    ? Math.max(28, (slot.score / maxStreakScore) * 78)
+                    : 16;
                   return (
                     <motion.div
                       key={i}
@@ -268,7 +277,7 @@ export default function Home() {
                           ? 'linear-gradient(180deg, #34D399, #10B981)'
                           : 'rgba(14,11,8,0.08)',
                       }}
-                      initial={{ height: 8 }}
+                      initial={{ height: 6 }}
                       animate={{ height: `${h}%` }}
                       transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
                     />
@@ -322,21 +331,24 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <SignalTile
-            icon={<Battery size={16} className="text-mint-500" />}
+            icon={<Battery size={16} className="text-mint-600 dark:text-mint-300" strokeWidth={2.25} />}
+            iconTone="bg-mint-500/12"
             label={t('home.social_battery')}
             value={checkedInToday && todayCheckIn ? `${todayCheckIn.socialBattery}%` : 'Tap to add'}
             muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
           <SignalTile
-            icon={<Moon size={16} className="text-ocean-500" />}
+            icon={<Moon size={16} className="text-coral-500" strokeWidth={2.25} />}
+            iconTone="bg-coral-500/12"
             label={t('home.sleep')}
             value={checkedInToday && todayCheckIn ? `${todayCheckIn.sleep}h` : 'Tap to add'}
             muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
           <SignalTile
-            icon={<Smartphone size={16} className={checkedInToday ? screenTimeColor : 'text-ink-300'} />}
+            icon={<Smartphone size={16} className={checkedInToday ? screenTimeColor : 'text-[#8B6CF0]'} strokeWidth={2.25} />}
+            iconTone="bg-[#A78BFA]/15"
             label={t('home.screen_time')}
             value={checkedInToday && todayCheckIn ? `${todayCheckIn.screenTime}h` : 'Tap to add'}
             valueClass={checkedInToday ? screenTimeColor : undefined}
@@ -344,7 +356,8 @@ export default function Home() {
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
           <SignalTile
-            icon={<span className="text-sm">{moodEmojis[checkedInToday && todayCheckIn ? todayCheckIn.mood : 2]}</span>}
+            icon={<span className="text-sm leading-none">{moodEmojis[checkedInToday && todayCheckIn ? todayCheckIn.mood : 2]}</span>}
+            iconTone="bg-lighthouse-500/15"
             label={t('home.mood')}
             value={
               checkedInToday && todayCheckIn
@@ -428,6 +441,7 @@ export default function Home() {
 
 function SignalTile({
   icon,
+  iconTone,
   label,
   value,
   valueClass,
@@ -435,6 +449,7 @@ function SignalTile({
   onClick,
 }: {
   icon: ReactNode;
+  iconTone: string;
   label: string;
   value: string;
   valueClass?: string;
@@ -444,23 +459,30 @@ function SignalTile({
   return (
     <motion.button
       type="button"
-      className="p-4 rounded-card glass shadow-soft text-left"
+      className="flex items-center gap-3 px-3.5 py-3.5 rounded-[22px] glass shadow-soft text-left"
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
     >
-      <div className="flex items-center gap-2">
+      <div className={`w-10 h-10 rounded-full ${iconTone} flex items-center justify-center shrink-0`}>
         {icon}
-        <span className="text-caption text-ink-600 dark:text-ink-300">{label}</span>
       </div>
-      <p
-        className={`font-display font-bold mt-2 ${
-          muted
-            ? 'text-body text-ink-300'
-            : `text-display-l text-ink-900 dark:text-ink-100 ${valueClass ?? ''}`
-        }`}
-      >
-        {value}
-      </p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium text-ink-600 dark:text-ink-300 leading-tight">
+          {label}
+        </p>
+        <p
+          className={`font-display font-bold mt-0.5 truncate ${
+            muted
+              ? 'text-caption text-ink-300'
+              : `text-body text-ink-900 dark:text-ink-100 ${valueClass ?? ''}`
+          }`}
+        >
+          {value}
+        </p>
+      </div>
+      {muted && (
+        <ArrowRight size={16} className="text-ink-300 shrink-0" strokeWidth={2.25} />
+      )}
     </motion.button>
   );
 }
