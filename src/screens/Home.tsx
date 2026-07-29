@@ -226,22 +226,13 @@ export default function Home() {
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 pt-1">
-                  <div className="flex items-baseline gap-2">
-                    <TrendingUp size={16} className="text-mint-500 shrink-0" strokeWidth={2.5} />
-                    <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
-                      {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
-                    </span>
-                    <span className="text-caption text-ink-600 dark:text-ink-300">vs yesterday</span>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2 px-2.5 py-1.5 rounded-capsule bg-coral-500/10 border border-coral-500/20 w-fit">
-                    <Flame size={13} className="text-coral-500" fill="currentColor" />
-                    <span className="text-caption font-bold text-coral-600 dark:text-coral-300">
-                      {user.currentStreak}-day streak
-                    </span>
-                  </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <TrendingUp size={16} className="text-mint-500 shrink-0" strokeWidth={2.5} />
+                  <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                    {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
+                  </span>
+                  <span className="text-caption text-ink-600 dark:text-ink-300">vs yesterday</span>
                 </div>
 
                 <motion.img
@@ -258,7 +249,12 @@ export default function Home() {
                 />
               </div>
 
-              <div className="mt-4 flex items-end gap-1.5 h-11">
+              <p className="mt-2 flex items-center gap-1.5 whitespace-nowrap font-display font-bold text-caption text-coral-600 dark:text-coral-300">
+                <Flame size={13} className="text-coral-500 shrink-0" fill="currentColor" />
+                {user.currentStreak}-day streak
+              </p>
+
+              <div className="mt-3 flex items-end gap-1.5 h-11">
                 {streakSlots.map((slot, i) => {
                   const h = slot.filled
                     ? Math.max(36, (slot.score / maxStreakScore) * 100)
