@@ -36,6 +36,16 @@ export function refreshChallengeList(
   return list.map((c) => refreshChallengeCompletion(c, now));
 }
 
+/** Wipe all completion state (proof + stamps) so every quest is open again. */
+export function resetAllChallengeProgress(list: Challenge[]): Challenge[] {
+  return list.map((c) => ({
+    ...c,
+    completed: false,
+    completedAt: undefined,
+    proofDataUrl: undefined,
+  }));
+}
+
 function hashSeed(input: string): number {
   let h = 2166136261;
   for (let i = 0; i < input.length; i++) {

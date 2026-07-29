@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { userProfile, checkIns, challenges, badges, SLEEP_GOAL_HOURS } from './mockData';
 import type { CheckIn, Challenge, Badge, ChallengeGroup } from './mockData';
 import { setLanguage } from './i18n';
-import { refreshChallengeList } from './challengeCycle';
+import { refreshChallengeList, resetAllChallengeProgress } from './challengeCycle';
 import {
   computeLifeBalanceScore,
   generateDailyTip,
@@ -178,9 +178,18 @@ export const useStore = create<AppState>()(
           };
         }),
       refreshExpiredChallenges: () =>
-        set((s) => ({
-          challenges: refreshChallengeList(s.challenges),
-        })),
+        set((s) => {
+          const next = refreshChallengeList(s.challenges);
+          // Align the done count with cards still inside the 2-week window.
+          const stillDone = next.filter((c) => c.completed).length;
+          return {
+            challenges: next,
+            user:
+              stillDone === s.user.totalChallenges
+                ? s.user
+                : { ...s.user, totalChallenges: stillDone },
+          };
+        }),
       logCheckIn: (data) =>
         set((s) => {
           const today = new Date().toISOString().split('T')[0];
@@ -485,11 +494,52 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'lighthouse-storage',
+      // v1 → v2: Life Balance no longer comes from challenge points. Wipe old
+      // challenge completions + totals so progress matches the score reset.
+      version: 2,
+      migrate: async (persisted, fromVersion) => {
+        const state = (persisted ?? {}) as Partial<AppState>;
+        if (fromVersion >= 2) return state;
+
+        const wipeUser = <T extends { totalChallenges?: number; currentScore?: number }>(
+          user: T | undefined
+        ): T | undefined =>
+          user
+            ? {
+                ...user,
+                totalChallenges: 0,
+                currentScore: 0,
+              }
+            : user;
+
+        const wipeAccount = (account: Account): Account => ({
+          ...account,
+          user: wipeUser(account.user) ?? account.user,
+          challenges: resetAllChallengeProgress(
+            mergeChallengeCatalog(account.challenges, challenges)
+          ),
+        });
+
+        return {
+          ...state,
+          user: wipeUser(state.user) ?? state.user,
+          challenges: resetAllChallengeProgress(
+            mergeChallengeCatalog(state.challenges, challenges)
+          ),
+          accounts: Object.fromEntries(
+            Object.entries(state.accounts ?? {}).map(([key, account]) => [
+              key,
+              wipeAccount(account),
+            ])
+          ),
+        };
+      },
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;
         return {
           ...current,
           ...p,
+          // Always re-apply the 2-week redo window on hydrate.
           challenges: mergeChallengeCatalog(p.challenges, challenges),
           accounts: Object.fromEntries(
             Object.entries(p.accounts ?? current.accounts).map(([key, account]) => [

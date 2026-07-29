@@ -26,6 +26,11 @@ export default function App() {
     setLanguage(language);
   }, [language]);
 
+  // Re-open challenges whose 2-week redo window has passed.
+  useEffect(() => {
+    useStore.getState().refreshExpiredChallenges();
+  }, []);
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');

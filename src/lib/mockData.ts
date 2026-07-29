@@ -81,12 +81,12 @@ export const userProfile = {
   ageRange: '15-16',
   language: 'en',
   memberSince: '2026-03-15',
-  tier: 'flame' as TierId,
-  tierProgress: 68,
-  totalChallenges: 47,
-  currentScore: 73,
-  currentStreak: 12,
-  weeklyChange: 4,
+  tier: 'spark' as TierId,
+  tierProgress: 0,
+  totalChallenges: 0,
+  currentScore: 0,
+  currentStreak: 0,
+  weeklyChange: 0,
 };
 
 export const checkIns: CheckIn[] = [
