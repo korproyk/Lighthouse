@@ -268,6 +268,7 @@ export const useStore = create<AppState>()(
             : s.lastWeeklyInsightAt,
           user: {
             ...s.user,
+            // Life Balance only — never touches XP / tier.
             currentScore: score,
             weeklyChange,
             currentStreak: s.user.currentStreak + 1,
@@ -501,27 +502,45 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'lighthouse-storage',
-      // v1 → v2: Life Balance no longer comes from challenge points. Wipe old
-      // challenge completions + totals so progress matches the score reset.
-      version: 2,
+      // v2 → v3: reset challenge progress + XP so the new tier ladder starts clean.
+      // Life Balance check-ins are left alone.
+      version: 3,
       migrate: async (persisted, fromVersion) => {
         const state = (persisted ?? {}) as Partial<AppState>;
-        if (fromVersion >= 2) return state;
+        if (fromVersion >= 3) return state;
 
-        const wipeUser = <T extends { totalChallenges?: number; currentScore?: number }>(
+        const wipeChallengeProgress = <
+          T extends {
+            totalChallenges?: number;
+            xp?: number;
+            tier?: string;
+            tierProgress?: number;
+          },
+        >(
           user: T | undefined
         ): T | undefined =>
           user
             ? {
                 ...user,
                 totalChallenges: 0,
-                currentScore: 0,
+                xp: 0,
+                tier: 'spark',
+                tierProgress: 0,
               }
+            : user;
+
+        // Older v0/v1 installs still need the Life Balance score wipe.
+        const wipeLegacyScore = <T extends { currentScore?: number }>(
+          user: T | undefined
+        ): T | undefined =>
+          fromVersion < 2 && user
+            ? { ...user, currentScore: 0 }
             : user;
 
         const wipeAccount = (account: Account): Account => ({
           ...account,
-          user: wipeUser(account.user) ?? account.user,
+          user:
+            wipeChallengeProgress(wipeLegacyScore(account.user)) ?? account.user,
           challenges: resetAllChallengeProgress(
             mergeChallengeCatalog(account.challenges, challenges)
           ),
@@ -529,7 +548,8 @@ export const useStore = create<AppState>()(
 
         return {
           ...state,
-          user: wipeUser(state.user) ?? state.user,
+          user:
+            wipeChallengeProgress(wipeLegacyScore(state.user)) ?? state.user,
           challenges: resetAllChallengeProgress(
             mergeChallengeCatalog(state.challenges, challenges)
           ),

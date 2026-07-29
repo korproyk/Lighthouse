@@ -1,0 +1,18 @@
+---
+description: Only reset challenge XP/tiers when user says RESET ALL TIERS!
+alwaysApply: true
+---
+
+# Tier / challenge progress reset gate
+
+Do **not** reset challenge completions, challenge XP, tiers, or `totalChallenges` unless the user message consists of (or centrally contains) the standalone phrase `RESET ALL TIERS!`.
+
+That phrase is the user's explicit, standing authorization to wipe and re-seed challenge progress / XP / tier state (for the active user and saved accounts as appropriate).
+
+Without `RESET ALL TIERS!`:
+
+- Never add storage migrations whose purpose is wiping XP, tiers, or challenge done-state.
+- Never clear `xp`, `tier`, `tierProgress`, `totalChallenges`, or challenge `completed` / `completedAt` / `proofDataUrl` "for convenience."
+- Normal product behavior (completing a challenge, the 2-week redo window, new accounts starting at Spark |) is fine.
+
+When `RESET ALL TIERS!` is sent: reset challenge progress + XP back to Spark | as the user intends, without asking for further confirmation.
