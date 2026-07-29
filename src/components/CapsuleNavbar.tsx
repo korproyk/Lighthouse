@@ -3,6 +3,7 @@ import { Home, Target, Users, Sparkles } from 'lucide-react';
 import { useRef } from 'react';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
+import AttentionBadge from './AttentionBadge';
 
 const tabs = [
   { icon: Home, label: 'nav.home' },
@@ -18,8 +19,13 @@ interface CapsuleNavbarProps {
 }
 
 export default function CapsuleNavbar({ onLightBotPress, onLightBotLongPress }: CapsuleNavbarProps) {
-  const { activeTab, setActiveTab, lightBotHasNudge, user } = useStore();
+  const { activeTab, setActiveTab, lightBotHasNudge, user, challenges } = useStore();
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Nudge Challenges when the required sleep quest still needs doing.
+  const challengesNeedAttention = challenges.some(
+    (c) => c.required && c.tracker === 'sleep' && !c.completed
+  );
 
   const handlePointerDown = (idx: number) => {
     if (idx === 2) {
@@ -139,6 +145,7 @@ export default function CapsuleNavbar({ onLightBotPress, onLightBotLongPress }: 
           }
 
           const Icon = tab.icon!;
+          const showChallengeNudge = idx === 1 && challengesNeedAttention && !isActive;
 
           return (
             <motion.button
@@ -146,10 +153,15 @@ export default function CapsuleNavbar({ onLightBotPress, onLightBotLongPress }: 
               className="relative flex items-center justify-center h-full focus-ring flex-1"
               whileTap={{ scale: 0.96 }}
               onClick={() => setActiveTab(idx)}
-              aria-label={t(tab.label)}
+              aria-label={
+                showChallengeNudge
+                  ? `${t(tab.label)}, action needed`
+                  : t(tab.label)
+              }
               style={{ zIndex: 1 }}
             >
               <motion.div
+                className="relative"
                 animate={{ scale: isActive ? 1.05 : 1 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 24 }}
               >
@@ -162,6 +174,9 @@ export default function CapsuleNavbar({ onLightBotPress, onLightBotLongPress }: 
                       : 'text-ink-300 dark:text-night-500'
                   }
                 />
+                {showChallengeNudge && (
+                  <AttentionBadge className="absolute -top-1.5 -right-2.5" size="sm" />
+                )}
               </motion.div>
             </motion.button>
           );

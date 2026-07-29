@@ -106,14 +106,12 @@ export default function Splash({ onDone }: SplashProps) {
         style={{ paddingTop: 'calc(20px + env(safe-area-inset-top))', zIndex: 2 }}
       >
         <div className="flex items-center gap-2">
-          <motion.div
-            className="relative w-10 h-10 rounded-[14px] hero-glow shadow-medium flex items-center justify-center overflow-hidden"
-            animate={{ rotate: [0, 2, -2, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.7), transparent 45%)' }} />
-            <Sparkles className="relative z-10 text-white" size={20} strokeWidth={2.25} fill="white" />
-          </motion.div>
+          <img
+            src="/images/logo.png"
+            alt=""
+            draggable={false}
+            className="w-10 h-10 rounded-[14px] shadow-medium object-cover"
+          />
           <div>
             <p className="font-display font-bold text-ink-900 tracking-tight leading-none" style={{ fontSize: 18 }}>
               Lighthouse

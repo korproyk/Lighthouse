@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, ArrowLeft, PenLine, Globe, Cake, Eye, EyeOff, Lock, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, PenLine, Globe, Cake, Eye, EyeOff, Lock, Loader2 } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { hashPassword } from '../lib/hash';
 import BeaconMascot from '../components/BeaconMascot';
@@ -125,10 +125,12 @@ export default function Onboarding() {
         className="relative flex items-center gap-2 px-6 pt-4"
         style={{ paddingTop: 'calc(20px + env(safe-area-inset-top))', zIndex: 2 }}
       >
-        <div className="relative w-10 h-10 rounded-[14px] hero-glow shadow-medium flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.65), transparent 45%)' }} />
-          <Sparkles className="relative z-10 text-white" size={20} strokeWidth={2.25} fill="white" />
-        </div>
+        <img
+          src="/images/logo.png"
+          alt=""
+          draggable={false}
+          className="w-10 h-10 rounded-[14px] shadow-medium object-cover"
+        />
         <div>
           <p className="font-display font-bold text-ink-900 tracking-tight leading-none" style={{ fontSize: 18 }}>
             Lighthouse

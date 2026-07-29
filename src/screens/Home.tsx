@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Flame, Battery, Moon, Smartphone, Zap, TrendingUp, Sparkles,
-  Target, ArrowRight, ClipboardCheck, FlaskConical,
+  Flame, Battery, Moon, Smartphone, TrendingUp, Sparkles,
+  ArrowRight, ClipboardCheck, FlaskConical,
 } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
@@ -29,19 +29,31 @@ export default function Home() {
   const {
     user,
     checkIns,
-    challenges,
     dailyTip,
     weeklyInsight,
-    setActiveTab,
     ensureWeeklyInsight,
   } = useStore();
 
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
+  const [balanceTipOpen, setBalanceTipOpen] = useState(false);
+  const balanceTipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     ensureWeeklyInsight();
   }, [ensureWeeklyInsight, checkIns]);
+
+  useEffect(() => {
+    return () => {
+      if (balanceTipTimer.current) clearTimeout(balanceTipTimer.current);
+    };
+  }, []);
+
+  const showBalanceTip = () => {
+    setBalanceTipOpen(true);
+    if (balanceTipTimer.current) clearTimeout(balanceTipTimer.current);
+    balanceTipTimer.current = setTimeout(() => setBalanceTipOpen(false), 3500);
+  };
 
   const today = todayKey();
   const todayCheckIn = checkIns.find((c) => c.date === today);
@@ -71,7 +83,6 @@ export default function Home() {
   });
   const maxStreakScore = Math.max(...streakScores, 1);
 
-  const todayChallenge = challenges.find((c) => !c.completed);
   const weeklyUnlocked = canUnlockWeeklyInsights(checkIns);
 
   const screenTimeColor =
@@ -150,38 +161,76 @@ export default function Home() {
       {/* Hero: Life Balance */}
       <div className="px-6 mt-5">
         <motion.div
-          className="relative overflow-hidden rounded-hero glass-strong p-5"
+          className="relative rounded-hero glass-strong p-5"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div
-            className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(30px)' }}
-          />
-          <div
-            className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.35), transparent 70%)', filter: 'blur(30px)' }}
-          />
-
+          <div className="absolute inset-0 rounded-hero overflow-hidden pointer-events-none" aria-hidden>
+            <div
+              className="absolute -top-20 -right-20 w-60 h-60 rounded-full"
+              style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(30px)' }}
+            />
+            <div
+              className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full"
+              style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.35), transparent 70%)', filter: 'blur(30px)' }}
+            />
+          </div>
           <div className="relative flex items-center gap-5">
             <div className="relative flex-shrink-0">
-              <div className="absolute inset-0 rounded-full bg-lighthouse-300/30 blur-2xl scale-110" />
-              <ScoreRing score={lifeScore} size={140} />
+              <div className="absolute inset-0 rounded-full bg-lighthouse-300/30 blur-2xl scale-110 pointer-events-none" />
+              <button
+                type="button"
+                className="relative focus-ring rounded-full"
+                onClick={showBalanceTip}
+                aria-label="What is Life Balance?"
+              >
+                <ScoreRing score={lifeScore} size={140} />
+              </button>
+
+              <AnimatePresence>
+                {balanceTipOpen && (
+                  <motion.div
+                    className="absolute left-1/2 top-[calc(100%+10px)] z-20 w-56 -translate-x-1/2 pointer-events-none"
+                    initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    role="tooltip"
+                  >
+                    {/* Caret pointing up at the ring */}
+                    <div
+                      className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-white dark:bg-night-800 border-l border-t border-black/10 dark:border-white/10"
+                      aria-hidden
+                    />
+                    <div className="relative rounded-2xl bg-white dark:bg-night-800 px-3.5 py-3 shadow-[0_10px_28px_rgba(14,11,8,0.18)] border border-black/10 dark:border-white/10">
+                      <p className="font-display font-bold text-caption text-ink-900 dark:text-ink-100">
+                        Life Balance
+                      </p>
+                      <p className="mt-1 text-[11px] leading-snug text-ink-600 dark:text-ink-300">
+                        Built from today&apos;s four check-in signals — not a mystery number.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <Sparkles size={13} className="text-lighthouse-600" />
-                <span className="text-micro uppercase tracking-[0.16em] text-ink-600 dark:text-ink-300">
-                  Life Balance
-                </span>
-              </div>
-              <p className="mt-1.5 text-caption text-ink-600 dark:text-ink-300 leading-snug">
-                Built from today&apos;s four check-in signals — not a mystery number.
-              </p>
+              <motion.img
+                src="/images/character-2.png"
+                alt=""
+                draggable={false}
+                className="block w-[72px] h-auto object-contain mb-1 -mt-1 drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: [0, -4, 0] }}
+                transition={{
+                  opacity: { duration: 0.35 },
+                  y: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
+                }}
+              />
 
-              <div className="mt-3 flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2">
                 <TrendingUp size={16} className="text-mint-500" strokeWidth={2.5} />
                 <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
                   {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
@@ -228,7 +277,12 @@ export default function Home() {
               transition={{ delay: 0.35 }}
             >
               <div className="flex items-center gap-1.5 mb-1">
-                <Zap size={13} className="text-mint-600 dark:text-mint-300" />
+                <img
+                  src="/images/lumi.png"
+                  alt=""
+                  className="w-4 h-4 object-contain shrink-0"
+                  draggable={false}
+                />
                 <span className="text-micro uppercase tracking-[0.14em] font-bold text-mint-700 dark:text-mint-300">
                   AI tip
                 </span>
@@ -325,50 +379,6 @@ export default function Home() {
                 </p>
               </div>
               <ArrowRight size={18} className="text-ink-600 dark:text-ink-300 shrink-0 mt-1" strokeWidth={2.5} />
-            </div>
-          </motion.button>
-        </div>
-      )}
-
-      {/* Today's Challenge */}
-      {todayChallenge && (
-        <div className="px-6 mt-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full hero-glow flex items-center justify-center shadow-soft">
-                <Target size={14} className="text-white" strokeWidth={2.5} />
-              </div>
-              <h2 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
-                {t('home.today_challenge')}
-              </h2>
-            </div>
-            <span className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold">
-              +{todayChallenge.points} pts
-            </span>
-          </div>
-
-          <motion.button
-            className="relative w-full p-5 rounded-hero hero-glow text-left shadow-medium overflow-hidden shine"
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setActiveTab(1)}
-          >
-            <div
-              className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
-              style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.3), transparent 70%)', filter: 'blur(24px)' }}
-            />
-            <div className="relative flex items-start gap-3">
-              <div className="flex-shrink-0 w-11 h-11 rounded-[14px] bg-white/25 backdrop-blur-sm flex items-center justify-center text-xl">
-                {todayChallenge.flag}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-display font-bold text-title text-white leading-tight">
-                  {todayChallenge.title}
-                </h3>
-                <p className="text-caption text-white/90 mt-1">
-                  {todayChallenge.description}
-                </p>
-              </div>
-              <ArrowRight size={18} className="text-white flex-shrink-0 mt-1" strokeWidth={2.5} />
             </div>
           </motion.button>
         </div>

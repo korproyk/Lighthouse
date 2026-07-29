@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import Lumi from '../components/Lumi';
+import AttentionBadge from '../components/AttentionBadge';
 import BottomSheet from '../components/BottomSheet';
 import LearnPanel from '../components/LearnPanel';
 import SleepRecording from '../components/SleepRecording';
@@ -340,6 +341,9 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
+        {!quest.completed && (
+          <AttentionBadge className="absolute top-3 left-3 z-10" size="md" />
+        )}
         <div
           className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
           style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)', filter: 'blur(26px)' }}
@@ -350,10 +354,9 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
         />
 
         <div className="relative flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pl-6">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-micro uppercase tracking-wider font-bold text-lavender-500">Required</span>
-              <span className="text-micro uppercase tracking-wider font-bold text-ink-300">· Sleep</span>
+              <span className="text-micro uppercase tracking-wider font-bold text-ink-300">Sleep</span>
             </div>
             <h3 className="font-display font-bold text-title text-ink-900 dark:text-ink-100">{quest.title}</h3>
             <p className="text-caption text-ink-600 dark:text-ink-300 mt-1">{quest.description}</p>
