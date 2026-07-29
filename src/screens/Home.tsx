@@ -176,7 +176,7 @@ export default function Home() {
               style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.35), transparent 70%)', filter: 'blur(30px)' }}
             />
           </div>
-          <div className="relative flex items-center gap-5">
+          <div className="relative flex items-center gap-4">
             <div className="relative flex-shrink-0">
               <div className="absolute inset-0 rounded-full bg-lighthouse-300/30 blur-2xl scale-110 pointer-events-none" />
               <button
@@ -217,32 +217,36 @@ export default function Home() {
             </div>
 
             <div className="flex-1 min-w-0">
-              <motion.img
-                src="/images/character-2.png"
-                alt=""
-                draggable={false}
-                className="block w-[72px] h-auto object-contain mb-1 -mt-1 drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: [0, -4, 0] }}
-                transition={{
-                  opacity: { duration: 0.35 },
-                  y: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
-                }}
-              />
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 pt-1">
+                  <div className="flex items-baseline gap-2">
+                    <TrendingUp size={16} className="text-mint-500 shrink-0" strokeWidth={2.5} />
+                    <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                      {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
+                    </span>
+                    <span className="text-caption text-ink-600 dark:text-ink-300">vs yesterday</span>
+                  </div>
 
-              <div className="flex items-baseline gap-2">
-                <TrendingUp size={16} className="text-mint-500" strokeWidth={2.5} />
-                <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
-                  {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
-                </span>
-                <span className="text-caption text-ink-600 dark:text-ink-300">vs yesterday</span>
-              </div>
+                  <div className="mt-3 flex items-center gap-2 px-2.5 py-1.5 rounded-capsule bg-coral-500/10 border border-coral-500/20 w-fit">
+                    <Flame size={13} className="text-coral-500" fill="currentColor" />
+                    <span className="text-caption font-bold text-coral-600 dark:text-coral-300">
+                      {user.currentStreak}-day streak
+                    </span>
+                  </div>
+                </div>
 
-              <div className="mt-3 flex items-center gap-2 px-2.5 py-1.5 rounded-capsule bg-coral-500/10 border border-coral-500/20 w-fit">
-                <Flame size={13} className="text-coral-500" fill="currentColor" />
-                <span className="text-caption font-bold text-coral-600 dark:text-coral-300">
-                  {user.currentStreak}-day streak
-                </span>
+                <motion.img
+                  src="/images/character-2.png"
+                  alt=""
+                  draggable={false}
+                  className="w-[78px] h-auto object-contain shrink-0 -mt-1 -mr-1 drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: [0, -4, 0] }}
+                  transition={{
+                    opacity: { duration: 0.35 },
+                    y: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
+                  }}
+                />
               </div>
 
               <div className="mt-4 flex items-end gap-1.5 h-11">
