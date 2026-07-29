@@ -97,19 +97,28 @@ export default function Home() {
       <div className="aurora-mesh" />
       <div className="noise-overlay" />
 
-      {/* Greeting */}
+      {/* Brand + greeting */}
       <div className="relative px-6 pt-4" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </p>
-            <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
-              {getGreeting()},
-              <br />
-              <span className="text-gradient-ember">{user.name}</span>
-            </h1>
-          </div>
+        <div className="flex items-center gap-2 mb-4">
+          <img
+            src="/images/logo.png"
+            alt=""
+            draggable={false}
+            className="w-8 h-8 rounded-[10px] shadow-soft object-cover"
+          />
+          <span className="font-display font-bold text-body text-ink-900 dark:text-ink-100 tracking-tight">
+            Lighthouse
+          </span>
+        </div>
+        <div>
+          <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+          </p>
+          <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
+            {getGreeting()},
+            <br />
+            <span className="text-gradient-ember">{user.name}</span>
+          </h1>
         </div>
       </div>
 
