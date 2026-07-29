@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Moon, Sun, Check, ArrowLeft } from 'lucide-react';
+import { Moon, Sun, Check, ArrowLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { SLEEP_GOAL_HOURS } from '../lib/mockData';
@@ -11,6 +11,9 @@ interface SleepRecordingProps {
   onClose: () => void;
   onCompleted?: (hours: number) => void;
 }
+
+const DEFAULT_BEDTIME = '10:30 PM';
+const DEFAULT_WAKE = '6:30 AM';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -29,6 +32,66 @@ function formatStamp(ts: number): string {
     minute: '2-digit',
     second: '2-digit',
   });
+}
+
+function SleepingFireguy() {
+  return (
+    <div className="relative mx-auto w-[9.5rem] h-[5.75rem]">
+      {/* Pillow */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 top-2 w-[5.5rem] h-7 rounded-[1.1rem]"
+        style={{
+          background: 'linear-gradient(180deg, #FFF9F3 0%, #F3E7DA 100%)',
+          boxShadow: 'inset 0 -2px 0 rgba(14,11,8,0.04)',
+        }}
+      />
+      {/* Blanket */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[8.25rem] h-[3.1rem] rounded-t-[1.35rem] rounded-b-[1.1rem]"
+        style={{
+          background: 'linear-gradient(180deg, #FFFDFB 0%, #F7EEE6 100%)',
+          boxShadow: '0 8px 18px rgba(14,11,8,0.06)',
+        }}
+      />
+      {/* Fireguy peeking from covers */}
+      <img
+        src="/images/character-2.png"
+        alt=""
+        className="absolute left-1/2 -translate-x-1/2 top-0 w-[4.4rem] h-[4.4rem] object-contain pointer-events-none select-none"
+        style={{ filter: 'drop-shadow(0 4px 10px rgba(255,122,69,0.28))' }}
+        draggable={false}
+      />
+      {/* Soft cover over lower half */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 bottom-[0.55rem] w-[6.4rem] h-[1.55rem] rounded-full"
+        style={{
+          background: 'linear-gradient(180deg, rgba(255,253,251,0.95), #F3E7DA)',
+        }}
+      />
+      {/* zzz */}
+      <motion.span
+        className="absolute right-3 top-0 font-display font-bold text-[11px] text-lighthouse-500/80"
+        animate={{ y: [0, -4, 0], opacity: [0.45, 1, 0.45] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        z
+      </motion.span>
+      <motion.span
+        className="absolute right-1.5 top-2.5 font-display font-bold text-[13px] text-lighthouse-500/70"
+        animate={{ y: [0, -5, 0], opacity: [0.35, 0.95, 0.35] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 0.35 }}
+      >
+        z
+      </motion.span>
+      <motion.span
+        className="absolute -right-0.5 top-5 font-display font-bold text-[15px] text-coral-500/65"
+        animate={{ y: [0, -6, 0], opacity: [0.3, 0.9, 0.3] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 0.7 }}
+      >
+        z
+      </motion.span>
+    </div>
+  );
 }
 
 export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRecordingProps) {
@@ -68,6 +131,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
   const elapsedMs = sleepSession ? now - sleepSession.startedAt : 0;
   const goalMs = SLEEP_GOAL_HOURS * 3_600_000;
   const timerCovered = sleeping && elapsedMs < goalMs;
+  const goalReached = sleeping && elapsedMs >= goalMs;
 
   const confirmBedtime = () => {
     startSleepSession();
@@ -144,10 +208,10 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
               className="relative flex-1 min-h-0 flex flex-col screen-scroll px-6"
               style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}
             >
-              {/* Header — same language as other Lighthouse screens */}
+              {/* Header */}
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
+                <div className="min-w-0">
+                  <p className="text-micro uppercase tracking-[0.18em] text-coral-500 font-bold mb-1">
                     Required · Sleep
                   </p>
                   <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
@@ -166,102 +230,175 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
               </div>
 
               <p className="mt-2 text-caption text-ink-600 dark:text-ink-300 leading-relaxed">
-                Double-tap bedtime when you put the phone down. Double-tap wakeup when you get up.
+                Double-tap bedtime when you put the phone down.
+                <br />
+                Double-tap wakeup when you get up.
               </p>
 
-              {/* Timer card — clock unmounts while sleeping; solid veil until 8h */}
+              {/* Sleep goal card */}
               <motion.div
-                className="relative mt-5 overflow-hidden rounded-hero glass-strong p-6 text-center min-h-[11.5rem]"
+                className="relative mt-5 overflow-hidden rounded-hero glass-strong px-5 pt-5 pb-4 text-center"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
               >
                 <div
-                  className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.5), transparent 70%)', filter: 'blur(28px)' }}
+                  className="absolute -top-16 -right-10 w-44 h-44 rounded-full pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.42), transparent 70%)', filter: 'blur(26px)' }}
                 />
                 <div
-                  className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.28), transparent 70%)', filter: 'blur(28px)' }}
+                  className="absolute -bottom-20 -left-12 w-40 h-40 rounded-full pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, rgba(255,181,71,0.28), transparent 70%)', filter: 'blur(26px)' }}
                 />
 
-                {/* Digits only exist when not covered — nothing to peek through */}
-                {!timerCovered && (
-                  <motion.div
-                    className="relative z-[1] min-h-[8.5rem] flex flex-col items-center justify-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    <p className="text-micro uppercase tracking-[0.16em] font-bold text-ink-300 mb-2">
-                      {sleeping ? 'Goal reached' : 'Ready'}
-                    </p>
-                    <p className="font-display font-bold text-[2.75rem] leading-none tracking-tight text-ink-900 dark:text-ink-100 tabular-nums">
-                      {formatElapsed(elapsedMs)}
-                    </p>
-                    <p className="mt-2 text-caption text-ink-300">
-                      Goal {SLEEP_GOAL_HOURS}h
-                    </p>
-                  </motion.div>
-                )}
+                <div className="relative z-[1]">
+                  <SleepingFireguy />
 
-                <AnimatePresence initial={false}>
-                  {timerCovered && (
-                    <motion.div
-                      key="timer-veil"
-                      className="absolute inset-0 z-10 flex flex-col items-center justify-center px-5 bg-cream dark:bg-night-900"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
-                      aria-label={`Timer hidden until ${SLEEP_GOAL_HOURS} hours`}
-                    >
-                      <div className="w-12 h-12 rounded-full hero-glow shadow-soft flex items-center justify-center mb-3">
-                        <Moon size={22} className="text-white" />
+                  <AnimatePresence mode="wait" initial={false}>
+                    {goalReached ? (
+                      <motion.div
+                        key="goal-reached"
+                        className="mt-3"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                      >
+                        <p className="text-micro uppercase tracking-[0.16em] font-bold text-ink-300">
+                          Goal reached
+                        </p>
+                        <p className="mt-1 font-display font-bold text-[2.35rem] leading-none tracking-tight text-lighthouse-600 dark:text-lighthouse-300 tabular-nums">
+                          {formatElapsed(elapsedMs)}
+                        </p>
+                      </motion.div>
+                    ) : timerCovered ? (
+                      <motion.div
+                        key="rest-easy"
+                        className="mt-3"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                      >
+                        <p className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                          Rest easy
+                        </p>
+                        <p className="mt-1 text-caption text-ink-600 dark:text-ink-300 leading-relaxed">
+                          Timer stays covered until you hit {SLEEP_GOAL_HOURS} hours.
+                        </p>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="sleep-goal"
+                        className="mt-3"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                      >
+                        <p className="text-micro uppercase tracking-[0.16em] font-bold text-ink-300">
+                          Sleep goal
+                        </p>
+                        <p className="mt-1 font-display font-bold text-[2.35rem] leading-none tracking-tight text-lighthouse-600 dark:text-lighthouse-300">
+                          {SLEEP_GOAL_HOURS} hours
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="mt-4 pt-3.5 border-t border-ink-100/80 dark:border-white/10 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-7 h-7 rounded-full hero-glow shadow-soft flex items-center justify-center shrink-0">
+                        <Moon size={13} className="text-white" />
+                      </span>
+                      <div className="min-w-0 text-left">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-ink-300 leading-none">
+                          Bedtime
+                        </p>
+                        <p className="mt-0.5 text-caption font-bold text-ink-900 dark:text-ink-100 tabular-nums truncate">
+                          {sleeping && sleepSession
+                            ? new Date(sleepSession.startedAt).toLocaleTimeString(undefined, {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                              })
+                            : DEFAULT_BEDTIME}
+                        </p>
                       </div>
-                      <p className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
-                        Rest easy
-                      </p>
-                      <p className="mt-1.5 text-caption text-ink-600 dark:text-ink-300 text-center leading-relaxed max-w-[16rem]">
-                        Timer stays covered until you hit {SLEEP_GOAL_HOURS} hours.
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    </div>
+
+                    <ArrowRight size={14} className="text-lighthouse-500 shrink-0" strokeWidth={2.5} />
+
+                    <div className="flex items-center gap-2 min-w-0 justify-end">
+                      <span className="w-7 h-7 rounded-full bg-[#FFB547] shadow-soft flex items-center justify-center shrink-0">
+                        <Sun size={13} className="text-white" />
+                      </span>
+                      <div className="min-w-0 text-left">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-ink-300 leading-none">
+                          Wake up
+                        </p>
+                        <p className="mt-0.5 text-caption font-bold text-ink-900 dark:text-ink-100 tabular-nums truncate">
+                          {DEFAULT_WAKE}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
 
-              {/* Bedtime / Wake */}
-              <div className="mt-4 flex gap-3 items-stretch min-h-[11rem]">
+              {/* Bedtime / Wake — size swap kept */}
+              <div className="mt-4 flex gap-3 items-stretch min-h-[5.75rem]">
                 <motion.button
                   type="button"
+                  layout
+                  transition={{ layout: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
                   onClick={handleBedtimeTap}
                   disabled={sleeping}
-                  className={`relative overflow-hidden rounded-hero text-left ${
-                    sleeping ? 'w-[32%] glass opacity-60' : 'flex-1 glass-tint-warm'
+                  className={`relative overflow-hidden rounded-[1.35rem] text-left ${
+                    sleeping
+                      ? 'w-[30%] glass opacity-55'
+                      : 'flex-1 glass-tint-warm'
                   }`}
                   whileTap={sleeping ? undefined : { scale: 0.98 }}
                 >
-                  <div className={`relative h-full p-4 flex flex-col ${sleeping ? 'items-center justify-center' : ''}`}>
-                    <div className={`rounded-full flex items-center justify-center ${
-                      sleeping ? 'w-9 h-9 bg-ink-100 dark:bg-night-700' : 'w-11 h-11 hero-glow shadow-soft'
-                    }`}>
-                      <Moon size={sleeping ? 16 : 20} className={sleeping ? 'text-ink-600 dark:text-ink-300' : 'text-white'} />
+                  <div
+                    className={`relative h-full flex ${
+                      sleeping
+                        ? 'flex-col items-center justify-center px-2 py-3'
+                        : 'items-center gap-3 px-3.5 py-3.5'
+                    }`}
+                  >
+                    <div
+                      className={`rounded-full flex items-center justify-center shrink-0 ${
+                        sleeping
+                          ? 'w-9 h-9 bg-ink-100 dark:bg-night-700'
+                          : 'w-11 h-11 hero-glow shadow-soft'
+                      }`}
+                    >
+                      <Moon
+                        size={sleeping ? 15 : 18}
+                        className={sleeping ? 'text-ink-600 dark:text-ink-300' : 'text-white'}
+                      />
                     </div>
-                    <p className={`font-display font-bold text-ink-900 dark:text-ink-100 ${
-                      sleeping ? 'text-[11px] text-center mt-2' : 'text-title mt-3'
-                    }`}>
-                      Start Bedtime
-                    </p>
-                    {!sleeping && (
+
+                    {sleeping ? (
+                      <p className="mt-1.5 text-[10px] font-bold text-center text-ink-600 dark:text-ink-300 leading-tight">
+                        Start Bedtime
+                      </p>
+                    ) : (
                       <>
-                        <div className="mt-3 flex gap-1.5">
-                          <span className={`w-2 h-2 rounded-full ${bedTap >= 1 ? 'hero-glow' : 'bg-ink-200 dark:bg-night-500'}`} />
-                          <span className={`w-2 h-2 rounded-full border-2 ${
-                            bedTap >= 2 ? 'border-lighthouse-500 bg-lighthouse-500' : 'border-lighthouse-400'
-                          }`} />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-display font-bold text-body text-ink-900 dark:text-ink-100 leading-tight">
+                            Start Bedtime
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-ink-600 dark:text-ink-300">
+                            {bedTap === 1 ? 'Tap again to confirm' : 'Click twice to confirm'}
+                          </p>
+                          <div className="mt-1.5 flex gap-1">
+                            <span className={`w-1.5 h-1.5 rounded-full ${bedTap >= 1 ? 'hero-glow' : 'bg-ink-200 dark:bg-night-500'}`} />
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full border ${
+                                bedTap >= 2 ? 'border-lighthouse-500 bg-lighthouse-500' : 'border-lighthouse-400'
+                              }`}
+                            />
+                          </div>
                         </div>
-                        <p className="mt-auto pt-3 text-[11px] text-ink-300">
-                          {bedTap === 1 ? 'Tap again to confirm' : 'Click twice to confirm'}
-                        </p>
+                        <ChevronRight size={16} className="text-ink-300 shrink-0" />
                       </>
                     )}
                   </div>
@@ -269,44 +406,70 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
 
                 <motion.button
                   type="button"
+                  layout
+                  transition={{ layout: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
                   onClick={handleWakeTap}
                   disabled={!sleeping}
-                  className={`relative overflow-hidden rounded-hero text-left ${
-                    !sleeping ? 'w-[32%] glass opacity-60' : 'flex-1 glass-strong'
+                  className={`relative overflow-hidden rounded-[1.35rem] text-left ${
+                    !sleeping
+                      ? 'w-[30%] glass opacity-55'
+                      : 'flex-1'
                   }`}
                   style={
                     sleeping
-                      ? { boxShadow: 'inset 0 0 0 2px rgba(255,181,71,0.55)' }
+                      ? {
+                          background:
+                            'linear-gradient(135deg, rgba(255,181,71,0.22), rgba(255,255,255,0.88) 55%)',
+                          boxShadow:
+                            'inset 0 0 0 1.5px rgba(255,181,71,0.45), 0 10px 28px rgba(14,11,8,0.06)',
+                        }
                       : undefined
                   }
                   whileTap={!sleeping ? undefined : { scale: 0.98 }}
                 >
-                  <div className={`relative h-full p-4 flex flex-col ${!sleeping ? 'items-center justify-center' : ''}`}>
-                    <div className={`rounded-full flex items-center justify-center ${
+                  <div
+                    className={`relative h-full flex ${
                       !sleeping
-                        ? 'w-9 h-9 bg-ink-100 dark:bg-night-700'
-                        : 'w-11 h-11 bg-[#FFB547] shadow-soft'
-                    }`}>
-                      <Sun size={!sleeping ? 16 : 20} className={!sleeping ? 'text-ink-600 dark:text-ink-300' : 'text-white'} />
+                        ? 'flex-col items-center justify-center px-2 py-3'
+                        : 'items-center gap-3 px-3.5 py-3.5'
+                    }`}
+                  >
+                    <div
+                      className={`rounded-full flex items-center justify-center shrink-0 ${
+                        !sleeping
+                          ? 'w-9 h-9 bg-ink-100 dark:bg-night-700'
+                          : 'w-11 h-11 bg-[#FFB547] shadow-soft'
+                      }`}
+                    >
+                      <Sun
+                        size={!sleeping ? 15 : 18}
+                        className={!sleeping ? 'text-ink-600 dark:text-ink-300' : 'text-white'}
+                      />
                     </div>
-                    <p className={`font-display font-bold ${
-                      !sleeping
-                        ? 'text-[11px] text-center mt-2 text-ink-600 dark:text-ink-300'
-                        : 'text-title mt-3 text-ink-900 dark:text-ink-100'
-                    }`}>
-                      Are U Awoke?
-                    </p>
-                    {sleeping && (
+
+                    {!sleeping ? (
+                      <p className="mt-1.5 text-[10px] font-bold text-center text-ink-600 dark:text-ink-300 leading-tight">
+                        Are U Awake?
+                      </p>
+                    ) : (
                       <>
-                        <div className="mt-3 flex gap-1.5">
-                          <span className={`w-2 h-2 rounded-full ${wakeTap >= 1 ? 'bg-[#FFB547]' : 'bg-ink-200 dark:bg-night-500'}`} />
-                          <span className={`w-2 h-2 rounded-full border-2 ${
-                            wakeTap >= 2 ? 'border-[#FFB547] bg-[#FFB547]' : 'border-[#FFB547]'
-                          }`} />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-display font-bold text-body text-ink-900 dark:text-ink-100 leading-tight">
+                            Are U Awake?
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-ink-600 dark:text-ink-300">
+                            {wakeTap === 1 ? 'Tap again to confirm' : 'Click twice to confirm'}
+                          </p>
+                          <div className="mt-1.5 flex gap-1">
+                            <span className={`w-1.5 h-1.5 rounded-full ${wakeTap >= 1 ? 'bg-[#FFB547]' : 'bg-ink-200 dark:bg-night-500'}`} />
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full border ${
+                                wakeTap >= 2 ? 'border-[#FFB547] bg-[#FFB547]' : 'border-[#FFB547]'
+                              }`}
+                            />
+                          </div>
                         </div>
-                        <p className="mt-auto pt-3 text-[11px] text-ink-300">
-                          {wakeTap === 1 ? 'Tap again to confirm' : 'Click twice to confirm'}
-                        </p>
+                        <ChevronRight size={16} className="text-ink-300 shrink-0" />
                       </>
                     )}
                   </div>
@@ -316,7 +479,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
               {/* −20 min */}
               <button
                 type="button"
-                className="mt-4 flex items-center gap-3 p-3.5 rounded-card glass text-left"
+                className="mt-4 flex items-center gap-3 px-3.5 py-3 rounded-card glass text-left"
                 onClick={() => setMinus20((v) => !v)}
               >
                 <span
@@ -326,22 +489,22 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                 >
                   {minus20 && <Check size={13} className="text-white" strokeWidth={3} />}
                 </span>
-                <span className="text-caption font-semibold text-ink-900 dark:text-ink-100 leading-snug">
+                <span className="text-caption text-ink-600 dark:text-ink-300 leading-snug">
                   Minus 20 minutes for a more accurate result
                 </span>
               </button>
 
-              <div className="mt-4 mb-6 p-4 rounded-card glass text-[11px] text-ink-300 leading-relaxed">
+              <div className="mt-3 mb-6 px-1 text-[11px] text-ink-300 leading-relaxed">
                 {sleeping && sleepSession ? (
                   <p>
-                    Bedtime started: {formatStamp(sleepSession.startedAt)}. Keeps running while locked. Press wakeup when you are done.
+                    Bedtime started {formatStamp(sleepSession.startedAt)}. Keeps running while locked.
                   </p>
                 ) : lastSleep ? (
                   <p>
-                    Recent sleep: {formatElapsed(lastSleep.hours * 3_600_000)} · recorded {formatStamp(lastSleep.endedAt)}
+                    Recent sleep: {formatElapsed(lastSleep.hours * 3_600_000)} · {formatStamp(lastSleep.endedAt)}
                   </p>
                 ) : (
-                  <p>Recent sleep: 00:00:00 — no night recorded yet.</p>
+                  <p>No night recorded yet.</p>
                 )}
               </div>
             </div>
