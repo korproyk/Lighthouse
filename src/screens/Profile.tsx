@@ -9,15 +9,9 @@ import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import { badges } from '../lib/mockData';
 import { themes, resolveThemeUv, type ThemeId } from '../lib/themes';
+import { tierFromXp, tierProgressPercent, nextTierThreshold } from '../lib/tiers';
 import BottomSheet from '../components/BottomSheet';
 import Lumi from '../components/Lumi';
-
-const tierData = {
-  spark: { name: 'Spark', min: 0, max: 30, color: 'from-lighthouse-300 to-lighthouse-500' },
-  flame: { name: 'Flame', min: 30, max: 60, color: 'from-lighthouse-500 to-coral-500' },
-  beacon: { name: 'Beacon', min: 60, max: 85, color: 'from-coral-500 to-lavender-500' },
-  keeper: { name: 'Lighthouse Keeper', min: 85, max: 100, color: 'from-lavender-500 to-ocean-500' },
-};
 
 const badgeIcons: Record<string, React.ElementType> = {
   sunrise: Sunrise, calendar: Calendar, target: Target, heart: Heart,
@@ -33,8 +27,10 @@ export default function Profile() {
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [themeChoice, setThemeChoice] = useState<ThemeId>(uvMode ? 'uv' : 'basic');
 
-  const tier = tierData[user.tier];
-  const tierProgress = ((user.currentScore - tier.min) / (tier.max - tier.min)) * 100;
+  const xp = user.xp ?? 0;
+  const tier = tierFromXp(xp);
+  const tierProgress = tierProgressPercent(xp);
+  const nextAt = nextTierThreshold(xp);
   const earnedBadges = badges.filter((b) => b.earned);
   const lockedBadges = badges.filter((b) => !b.earned);
 
@@ -114,10 +110,16 @@ export default function Profile() {
           >
             <div className="flex items-baseline justify-between mb-1.5">
               <span className="text-caption font-semibold text-ink-700 dark:text-ink-200">
-                Next tier: <span className="font-display font-bold">{Math.round(tierProgress)}%</span>
+                {nextAt == null ? (
+                  <>Tier maxed</>
+                ) : (
+                  <>
+                    Next tier: <span className="font-display font-bold">{Math.round(tierProgress)}%</span>
+                  </>
+                )}
               </span>
               <span className="text-[11px] text-ink-600 dark:text-ink-300 font-bold">
-                {user.currentScore} / {tier.max}
+                {nextAt == null ? `${xp} XP` : `${xp} / ${nextAt} XP`}
               </span>
             </div>
             <div className="h-2.5 bg-white/40 dark:bg-night-700/60 rounded-full overflow-hidden">
@@ -135,7 +137,7 @@ export default function Profile() {
           {/* Stats trio inside hero */}
           <div className="relative mt-4 grid grid-cols-3 gap-2">
             {[
-              { label: t('profile.score'), value: user.currentScore, Icon: Trophy, color: 'text-lighthouse-600' },
+              { label: 'XP', value: xp, Icon: Trophy, color: 'text-lighthouse-600' },
               { label: t('profile.streak'), value: `${user.currentStreak}d`, Icon: Flame, color: 'text-coral-500' },
               { label: t('profile.challenges_done'), value: user.totalChallenges, Icon: Target, color: 'text-mint-500' },
             ].map((stat) => {

@@ -252,6 +252,9 @@ export default function Challenges() {
                 <motion.div key="done" className="text-center py-6" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }}>
                   <Lumi pose="cheering" size={80} />
                   <p className="mt-3 font-display font-bold text-title text-mint-700 dark:text-mint-300">Amazing work! {'\u{1F31F}'}</p>
+                  <p className="mt-1 font-display font-bold text-body text-lighthouse-600">
+                    +{selectedChallenge.points} XP
+                  </p>
                 </motion.div>
               ) : (
                 <motion.div key="proof" className="space-y-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

@@ -4,6 +4,7 @@ import { userProfile, checkIns, challenges, badges, SLEEP_GOAL_HOURS } from './m
 import type { CheckIn, Challenge, Badge, ChallengeGroup } from './mockData';
 import { setLanguage } from './i18n';
 import { refreshChallengeList, resetAllChallengeProgress } from './challengeCycle';
+import { tierFromXp, tierProgressPercent } from './tiers';
 import {
   computeLifeBalanceScore,
   generateDailyTip,
@@ -159,6 +160,8 @@ export const useStore = create<AppState>()(
           if (!target || target.completed) return s;
           // Non-sleep challenges need a proof photo.
           if (target.tracker !== 'sleep' && !proofDataUrl) return s;
+          const nextXp = (s.user.xp ?? 0) + target.points;
+          const nextTier = tierFromXp(nextXp);
           return {
             challenges: s.challenges.map((c) =>
               c.id === id
@@ -172,7 +175,10 @@ export const useStore = create<AppState>()(
             ),
             user: {
               ...s.user,
-              // Life Balance comes from daily check-ins, not challenge points.
+              // Challenge pts → XP / tiers. Life Balance stays check-in-only.
+              xp: nextXp,
+              tier: nextTier.id,
+              tierProgress: tierProgressPercent(nextXp),
               totalChallenges: s.user.totalChallenges + 1,
             },
           };
@@ -336,6 +342,7 @@ export const useStore = create<AppState>()(
           tier: 'spark' as const,
           tierProgress: 0,
           currentScore: 0,
+          xp: 0,
           currentStreak: 0,
           weeklyChange: 0,
           totalChallenges: 0,
@@ -536,9 +543,21 @@ export const useStore = create<AppState>()(
       },
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;
+        const normalizeUser = <T extends typeof userProfile>(user: T | undefined): T | undefined => {
+          if (!user) return user;
+          const xp = typeof user.xp === 'number' ? user.xp : 0;
+          const tier = tierFromXp(xp);
+          return {
+            ...user,
+            xp,
+            tier: tier.id,
+            tierProgress: tierProgressPercent(xp),
+          };
+        };
         return {
           ...current,
           ...p,
+          user: normalizeUser(p.user as typeof userProfile) ?? current.user,
           // Always re-apply the 2-week redo window on hydrate.
           challenges: mergeChallengeCatalog(p.challenges, challenges),
           accounts: Object.fromEntries(
@@ -546,6 +565,7 @@ export const useStore = create<AppState>()(
               key,
               {
                 ...account,
+                user: normalizeUser(account.user) ?? account.user,
                 challenges: mergeChallengeCatalog(account.challenges, challenges),
               },
             ])

@@ -1,3 +1,5 @@
+import type { TierId } from './tiers';
+
 export interface CheckIn {
   date: string;
   mood: number;
@@ -71,7 +73,7 @@ function daysAgo(n: number): string {
   return d.toISOString().split('T')[0];
 }
 
-export type TierId = 'spark' | 'flame' | 'beacon' | 'keeper';
+export type { TierId } from './tiers';
 
 export const userProfile = {
   name: 'Aranya',
@@ -84,6 +86,8 @@ export const userProfile = {
   tier: 'spark' as TierId,
   tierProgress: 0,
   totalChallenges: 0,
+  /** Challenge XP — fuels the tier ladder (not Life Balance). */
+  xp: 0,
   currentScore: 0,
   currentStreak: 0,
   weeklyChange: 0,
