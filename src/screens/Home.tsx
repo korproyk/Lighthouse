@@ -239,7 +239,7 @@ export default function Home() {
                   <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
                     {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
                   </span>
-                  <span className="text-caption text-ink-600 dark:text-ink-300">vs yesterday</span>
+                  <span className="text-caption text-ink-600 dark:text-ink-300">achieved!</span>
                 </div>
 
                 <motion.img
