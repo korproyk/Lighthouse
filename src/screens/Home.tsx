@@ -162,7 +162,7 @@ export default function Home() {
                     ~30 sec
                   </span>
                 </div>
-                <p className="text-caption text-white/90 mt-1.5 tracking-wide">
+                <p className="text-[11px] text-white/90 mt-1.5 tracking-wide whitespace-nowrap">
                   Mood <span className="opacity-50">|</span> Sleep{' '}
                   <span className="opacity-50">|</span> Screen time{' '}
                   <span className="opacity-50">|</span> Social battery
