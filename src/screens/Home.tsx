@@ -234,12 +234,16 @@ export default function Home() {
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-baseline gap-2 min-w-0">
-                  <TrendingUp size={16} className="text-mint-500 shrink-0" strokeWidth={2.5} />
-                  <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
-                    {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
-                  </span>
-                  <span className="text-caption text-ink-600 dark:text-ink-300">achieved!</span>
+                <div className="min-w-0">
+                  <div className="flex items-baseline gap-1.5">
+                    <TrendingUp size={16} className="text-mint-500 shrink-0" strokeWidth={2.5} />
+                    <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                      {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-caption text-ink-600 dark:text-ink-300">
+                    achieved!
+                  </p>
                 </div>
 
                 <motion.img
