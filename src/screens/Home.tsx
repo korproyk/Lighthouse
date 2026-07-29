@@ -46,32 +46,38 @@ export default function Home() {
   const today = todayKey();
   const todayCheckIn = checkIns.find((c) => c.date === today);
   const checkedInToday = Boolean(todayCheckIn?.completed);
-  const displayCheckIn =
-    (checkedInToday ? todayCheckIn : null) ??
-    [...checkIns].reverse().find((c) => c.completed) ??
-    null;
 
   const lifeScore = checkedInToday
     ? todayCheckIn!.score
-    : displayCheckIn?.score ?? user.currentScore;
+    : 0;
 
   const tip =
-    dailyTip ??
-    todayCheckIn?.tip ??
-    displayCheckIn?.tip ??
     (checkedInToday
-      ? null
-      : 'Check in once a day — mood, sleep, screen, and social battery become your Life Balance score.');
+      ? dailyTip ?? todayCheckIn?.tip
+      : 'Check in once a day — mood, sleep, screen, and social battery become your Life Balance score.') ??
+    null;
 
-  const last7 = checkIns.slice(-7);
-  const maxScore = Math.max(...last7.map((d) => d.score || 0), 80);
+  // Streak strip: left → right fills green as you check in each day (no red "today" bar).
+  const streakLen = Math.min(7, Math.max(0, user.currentStreak));
+  const streakScores = checkIns
+    .filter((c) => c.completed)
+    .slice(-streakLen)
+    .map((c) => c.score);
+  const streakSlots = Array.from({ length: 7 }, (_, i) => {
+    if (i < streakScores.length) {
+      return { filled: true, score: streakScores[i] };
+    }
+    return { filled: false, score: 0 };
+  });
+  const maxStreakScore = Math.max(...streakScores, 1);
+
   const todayChallenge = challenges.find((c) => !c.completed);
   const weeklyUnlocked = canUnlockWeeklyInsights(checkIns);
 
   const screenTimeColor =
-    displayCheckIn && displayCheckIn.screenTime <= 3
+    checkedInToday && todayCheckIn && todayCheckIn.screenTime <= 3
       ? 'text-mint-500'
-      : displayCheckIn && displayCheckIn.screenTime <= 5
+      : checkedInToday && todayCheckIn && todayCheckIn.screenTime <= 5
         ? 'text-lighthouse-500'
         : 'text-coral-500';
 
@@ -190,24 +196,23 @@ export default function Home() {
                 </span>
               </div>
 
-              <div className="mt-4 flex items-end gap-1 h-10">
-                {last7.map((day, i) => {
-                  const h = Math.max(16, ((day.score || 0) / maxScore) * 100);
-                  const isToday = i === last7.length - 1;
+              <div className="mt-4 flex items-end gap-1.5 h-11">
+                {streakSlots.map((slot, i) => {
+                  const h = slot.filled
+                    ? Math.max(36, (slot.score / maxStreakScore) * 100)
+                    : 22;
                   return (
                     <motion.div
-                      key={day.date}
-                      className="flex-1 rounded-sm"
+                      key={i}
+                      className="flex-1 rounded-full"
                       style={{
-                        background: isToday
-                          ? 'linear-gradient(180deg, #FF7A45, #FF4D6A)'
-                          : day.completed
-                            ? 'linear-gradient(180deg, #FFCA6B, #FFB27A)'
-                            : 'rgba(14,11,8,0.08)',
+                        background: slot.filled
+                          ? 'linear-gradient(180deg, #34D399, #10B981)'
+                          : 'rgba(14,11,8,0.08)',
                       }}
-                      initial={{ height: 0 }}
+                      initial={{ height: 8 }}
                       animate={{ height: `${h}%` }}
-                      transition={{ delay: 0.15 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
+                      transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
                     />
                   );
                 })}
@@ -256,38 +261,42 @@ export default function Home() {
           <SignalTile
             icon={<Battery size={16} className="text-mint-500" />}
             label={t('home.social_battery')}
-            value={displayCheckIn ? `${displayCheckIn.socialBattery}%` : '--'}
+            value={checkedInToday && todayCheckIn ? `${todayCheckIn.socialBattery}%` : 'Tap to add'}
+            muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
           <SignalTile
             icon={<Moon size={16} className="text-ocean-500" />}
             label={t('home.sleep')}
-            value={displayCheckIn ? `${displayCheckIn.sleep}h` : '--'}
+            value={checkedInToday && todayCheckIn ? `${todayCheckIn.sleep}h` : 'Tap to add'}
+            muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
           <SignalTile
-            icon={<Smartphone size={16} className={displayCheckIn ? screenTimeColor : 'text-ink-300'} />}
+            icon={<Smartphone size={16} className={checkedInToday ? screenTimeColor : 'text-ink-300'} />}
             label={t('home.screen_time')}
-            value={displayCheckIn ? `${displayCheckIn.screenTime}h` : '--'}
-            valueClass={displayCheckIn ? screenTimeColor : undefined}
+            value={checkedInToday && todayCheckIn ? `${todayCheckIn.screenTime}h` : 'Tap to add'}
+            valueClass={checkedInToday ? screenTimeColor : undefined}
+            muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
           <SignalTile
-            icon={<span className="text-sm">{moodEmojis[displayCheckIn?.mood ?? 2]}</span>}
+            icon={<span className="text-sm">{moodEmojis[checkedInToday && todayCheckIn ? todayCheckIn.mood : 2]}</span>}
             label={t('home.mood')}
             value={
-              displayCheckIn
-                ? moodLabels[displayCheckIn.mood] ?? '--'
-                : '--'
+              checkedInToday && todayCheckIn
+                ? moodLabels[todayCheckIn.mood] ?? 'Tap to add'
+                : 'Tap to add'
             }
+            muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
         </div>
       </div>
 
-      {/* Weekly insights */}
-      <div className="px-6 mt-5">
-        {weeklyUnlocked && weeklyInsight ? (
+      {/* Weekly insights — only once unlocked */}
+      {weeklyUnlocked && weeklyInsight && (
+        <div className="px-6 mt-5">
           <motion.button
             type="button"
             className="relative w-full overflow-hidden p-4 rounded-hero glass-strong text-left"
@@ -318,18 +327,8 @@ export default function Home() {
               <ArrowRight size={18} className="text-ink-600 dark:text-ink-300 shrink-0 mt-1" strokeWidth={2.5} />
             </div>
           </motion.button>
-        ) : (
-          <div className="p-4 rounded-hero glass text-center">
-            <p className="font-display font-bold text-body text-ink-900 dark:text-ink-100">
-              Weekly AI Insights unlock soon
-            </p>
-            <p className="mt-1 text-caption text-ink-600 dark:text-ink-300 leading-relaxed">
-              Check in for {Math.max(0, 7 - checkIns.filter((c) => c.completed).length)} more day
-              {Math.max(0, 7 - checkIns.filter((c) => c.completed).length) === 1 ? '' : 's'} to get a personal pattern read and a wellness experiment.
-            </p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Today's Challenge */}
       {todayChallenge && (
@@ -413,12 +412,14 @@ function SignalTile({
   label,
   value,
   valueClass,
+  muted,
   onClick,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   valueClass?: string;
+  muted?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -432,7 +433,13 @@ function SignalTile({
         {icon}
         <span className="text-caption text-ink-600 dark:text-ink-300">{label}</span>
       </div>
-      <p className={`font-display font-bold text-display-l mt-2 text-ink-900 dark:text-ink-100 ${valueClass ?? ''}`}>
+      <p
+        className={`font-display font-bold mt-2 ${
+          muted
+            ? 'text-body text-ink-300'
+            : `text-display-l text-ink-900 dark:text-ink-100 ${valueClass ?? ''}`
+        }`}
+      >
         {value}
       </p>
     </motion.button>
