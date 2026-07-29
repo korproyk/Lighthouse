@@ -334,7 +334,7 @@ export default function Home() {
             icon={<Battery size={16} className="text-mint-600 dark:text-mint-300" strokeWidth={2.25} />}
             iconTone="bg-mint-500/12"
             label={t('home.social_battery')}
-            value={checkedInToday && todayCheckIn ? `${todayCheckIn.socialBattery}%` : 'Tap to add'}
+            value={checkedInToday && todayCheckIn ? `${todayCheckIn.socialBattery}%` : ''}
             muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
@@ -342,7 +342,7 @@ export default function Home() {
             icon={<Moon size={16} className="text-coral-500" strokeWidth={2.25} />}
             iconTone="bg-coral-500/12"
             label={t('home.sleep')}
-            value={checkedInToday && todayCheckIn ? `${todayCheckIn.sleep}h` : 'Tap to add'}
+            value={checkedInToday && todayCheckIn ? `${todayCheckIn.sleep}h` : ''}
             muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
           />
@@ -350,7 +350,7 @@ export default function Home() {
             icon={<Smartphone size={16} className={checkedInToday ? screenTimeColor : 'text-[#8B6CF0]'} strokeWidth={2.25} />}
             iconTone="bg-[#A78BFA]/15"
             label={t('home.screen_time')}
-            value={checkedInToday && todayCheckIn ? `${todayCheckIn.screenTime}h` : 'Tap to add'}
+            value={checkedInToday && todayCheckIn ? `${todayCheckIn.screenTime}h` : ''}
             valueClass={checkedInToday ? screenTimeColor : undefined}
             muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
@@ -361,8 +361,8 @@ export default function Home() {
             label={t('home.mood')}
             value={
               checkedInToday && todayCheckIn
-                ? moodLabels[todayCheckIn.mood] ?? 'Tap to add'
-                : 'Tap to add'
+                ? moodLabels[todayCheckIn.mood] ?? ''
+                : ''
             }
             muted={!checkedInToday}
             onClick={() => !checkedInToday && setCheckInOpen(true)}
@@ -470,15 +470,17 @@ function SignalTile({
         <p className="text-[11px] font-medium text-ink-600 dark:text-ink-300 leading-tight">
           {label}
         </p>
-        <p
-          className={`font-display font-bold mt-0.5 truncate ${
-            muted
-              ? 'text-caption text-ink-300'
-              : `text-body text-ink-900 dark:text-ink-100 ${valueClass ?? ''}`
-          }`}
-        >
-          {value}
-        </p>
+        {value ? (
+          <p
+            className={`font-display font-bold mt-0.5 truncate ${
+              muted
+                ? 'text-caption text-ink-300'
+                : `text-body text-ink-900 dark:text-ink-100 ${valueClass ?? ''}`
+            }`}
+          >
+            {value}
+          </p>
+        ) : null}
       </div>
       {muted && (
         <ArrowRight size={16} className="text-ink-300 shrink-0" strokeWidth={2.25} />
