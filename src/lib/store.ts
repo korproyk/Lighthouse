@@ -4,6 +4,13 @@ import { userProfile, checkIns, challenges, badges, SLEEP_GOAL_HOURS } from './m
 import type { CheckIn, Challenge, Badge, ChallengeGroup } from './mockData';
 import { setLanguage } from './i18n';
 import { refreshChallengeList } from './challengeCycle';
+import {
+  computeLifeBalanceScore,
+  generateDailyTip,
+  generateWeeklyInsight,
+  canUnlockWeeklyInsights,
+  type WeeklyInsight,
+} from './lifeBalance';
 
 export interface Account {
   passwordHash: string;
@@ -47,6 +54,9 @@ interface AppState {
   lastSleep: SleepRecord | null;
   joinedGroupId: string | null;
   customGroups: ChallengeGroup[];
+  dailyTip: string | null;
+  weeklyInsight: WeeklyInsight | null;
+  lastWeeklyInsightAt: string | null;
 
   setOnboarded: () => void;
   toggleDarkMode: () => void;
@@ -56,6 +66,14 @@ interface AppState {
   completeChallenge: (id: string, proofDataUrl?: string) => void;
   refreshExpiredChallenges: () => void;
   logCheckIn: (data: Partial<CheckIn>) => void;
+  logDailyCheckIn: (data: {
+    mood: number;
+    sleep: number;
+    screenTime: number;
+    socialBattery: number;
+  }) => { score: number; tip: string; weeklyReady: boolean } | null;
+  dismissWeeklyInsight: () => void;
+  ensureWeeklyInsight: () => void;
   dismissNudge: () => void;
   dismissEasterEgg: () => void;
   addBonusPoints: (points: number) => void;
@@ -123,6 +141,9 @@ export const useStore = create<AppState>()(
       lastSleep: null,
       joinedGroupId: null,
       customGroups: [],
+      dailyTip: null,
+      weeklyInsight: null,
+      lastWeeklyInsightAt: null,
 
       setOnboarded: () => set({ hasOnboarded: true }),
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
@@ -151,7 +172,7 @@ export const useStore = create<AppState>()(
             ),
             user: {
               ...s.user,
-              currentScore: s.user.currentScore + (target.points ?? 0),
+              // Life Balance comes from daily check-ins, not challenge points.
               totalChallenges: s.user.totalChallenges + 1,
             },
           };
@@ -169,13 +190,99 @@ export const useStore = create<AppState>()(
             ),
           };
         }),
+      logDailyCheckIn: (data) => {
+        const s = get();
+        const today = new Date().toISOString().split('T')[0];
+        const todayRow = s.checkIns.find((c) => c.date === today);
+        if (todayRow?.completed) return null;
+
+        const score = computeLifeBalanceScore(data);
+        const tip = generateDailyTip({ ...data, score });
+
+        const nextCheckIns = s.checkIns.map((c) =>
+          c.date === today
+            ? {
+                ...c,
+                ...data,
+                score,
+                tip,
+                completed: true,
+              }
+            : c
+        );
+
+        // Ensure today exists even if seed was missing it.
+        const hasToday = nextCheckIns.some((c) => c.date === today);
+        const withToday = hasToday
+          ? nextCheckIns
+          : [
+              ...nextCheckIns,
+              {
+                date: today,
+                ...data,
+                score,
+                tip,
+                completed: true,
+              },
+            ];
+
+        const completedBefore = s.checkIns.filter((c) => c.completed).length;
+        const completedAfter = withToday.filter((c) => c.completed).length;
+        const weeklyReady = canUnlockWeeklyInsights(withToday);
+        const needsFreshWeekly =
+          weeklyReady &&
+          (!s.lastWeeklyInsightAt ||
+            Date.now() - new Date(s.lastWeeklyInsightAt).getTime() >= 7 * 24 * 60 * 60 * 1000 ||
+            (completedBefore < 7 && completedAfter >= 7));
+
+        const weeklyInsight = needsFreshWeekly
+          ? generateWeeklyInsight(withToday)
+          : s.weeklyInsight;
+
+        const yesterday = withToday.find(
+          (c) => c.date === new Date(Date.now() - 86400000).toISOString().split('T')[0]
+        );
+        const weeklyChange = yesterday?.completed ? score - yesterday.score : s.user.weeklyChange;
+
+        set({
+          checkIns: withToday,
+          dailyTip: tip,
+          weeklyInsight: weeklyInsight ?? s.weeklyInsight,
+          lastWeeklyInsightAt: needsFreshWeekly && weeklyInsight
+            ? weeklyInsight.generatedAt
+            : s.lastWeeklyInsightAt,
+          user: {
+            ...s.user,
+            currentScore: score,
+            weeklyChange,
+            currentStreak: s.user.currentStreak + 1,
+          },
+        });
+
+        return { score, tip, weeklyReady };
+      },
+      dismissWeeklyInsight: () => set({ weeklyInsight: null }),
+      ensureWeeklyInsight: () => {
+        const s = get();
+        if (!canUnlockWeeklyInsights(s.checkIns)) return;
+        const stale =
+          !s.lastWeeklyInsightAt ||
+          Date.now() - new Date(s.lastWeeklyInsightAt).getTime() >= 7 * 24 * 60 * 60 * 1000;
+        if (s.weeklyInsight && !stale) return;
+        const insight = generateWeeklyInsight(s.checkIns);
+        if (!insight) return;
+        set({
+          weeklyInsight: insight,
+          lastWeeklyInsightAt: insight.generatedAt,
+        });
+      },
       dismissNudge: () => set({ lightBotHasNudge: false }),
       dismissEasterEgg: () => set({ showEasterEgg: false }),
       addBonusPoints: (points) =>
         set((s) => ({
           user: {
             ...s.user,
-            currentScore: s.user.currentScore + points,
+            currentScore: Math.min(100, s.user.currentScore + points),
           },
         })),
       setUserName: (name) =>
@@ -192,6 +299,9 @@ export const useStore = create<AppState>()(
           lastSleep: null,
           joinedGroupId: null,
           customGroups: [],
+          dailyTip: null,
+          weeklyInsight: null,
+          lastWeeklyInsightAt: null,
         });
       },
 
@@ -229,6 +339,7 @@ export const useStore = create<AppState>()(
           sleep: 0,
           socialBattery: 0,
           score: 0,
+          tip: undefined,
           completed: false,
         }));
         const freshChallenges = challenges.map((c) => ({ ...c, completed: false }));
@@ -258,6 +369,9 @@ export const useStore = create<AppState>()(
           customGroups: [],
           sleepSession: null,
           lastSleep: null,
+          dailyTip: null,
+          weeklyInsight: null,
+          lastWeeklyInsightAt: null,
         });
       },
       loginAccount: (nickname) => {
@@ -402,6 +516,9 @@ export const useStore = create<AppState>()(
         lastSleep: state.lastSleep,
         joinedGroupId: state.joinedGroupId,
         customGroups: state.customGroups,
+        dailyTip: state.dailyTip,
+        weeklyInsight: state.weeklyInsight,
+        lastWeeklyInsightAt: state.lastWeeklyInsightAt,
       }),
     }
   )

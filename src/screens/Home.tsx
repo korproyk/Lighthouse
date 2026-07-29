@@ -1,10 +1,15 @@
+import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Battery, Moon, Smartphone, Zap, TrendingUp, Sparkles, Target, ArrowRight, GraduationCap, Clock, Users } from 'lucide-react';
+import {
+  Flame, Battery, Moon, Smartphone, Zap, TrendingUp, Sparkles,
+  Target, ArrowRight, ClipboardCheck, FlaskConical,
+} from 'lucide-react';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import ScoreRing from '../components/ScoreRing';
-import Lumi from '../components/Lumi';
-import { learningSkills } from '../lib/mockData';
+import DailyCheckIn from '../components/DailyCheckIn';
+import WeeklyInsights from '../components/WeeklyInsights';
+import { canUnlockWeeklyInsights } from '../lib/lifeBalance';
 
 const moodEmojis = ['\u{1F614}', '\u{1F615}', '\u{1F610}', '\u{1F642}', '\u{1F60A}'];
 const moodLabels = ['Sad', 'Meh', 'Okay', 'Good', 'Great'];
@@ -16,99 +21,62 @@ function getGreeting(): string {
   return t('home.greeting.evening');
 }
 
-function LearnSomethingNew() {
-  const { setActiveTab } = useStore();
-  const pick = learningSkills[new Date().getDate() % learningSkills.length];
-
-  return (
-    <div className="px-6 mt-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center shadow-soft" style={{ background: 'linear-gradient(135deg, #63C5B2, #4A90E2)' }}>
-            <GraduationCap size={14} className="text-white" strokeWidth={2.5} />
-          </div>
-          <h2 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
-            Learn a new thing
-          </h2>
-        </div>
-        <button
-          className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold"
-          onClick={() => setActiveTab(3)}
-        >
-          See all
-        </button>
-      </div>
-
-      <motion.button
-        className="relative w-full p-5 rounded-hero glass-strong text-left overflow-hidden"
-        whileTap={{ scale: 0.98 }}
-        onClick={() => setActiveTab(3)}
-      >
-        <div
-          className="absolute -top-16 -right-16 w-52 h-52 rounded-full pointer-events-none"
-          style={{ background: `radial-gradient(circle, ${pick.color}77, transparent 70%)`, filter: 'blur(26px)' }}
-        />
-        <div
-          className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(74,144,226,0.3), transparent 70%)', filter: 'blur(24px)' }}
-        />
-        <div className="relative flex items-start gap-3">
-          <div
-            className="flex-shrink-0 w-12 h-12 rounded-[16px] flex items-center justify-center shadow-soft"
-            style={{ background: `linear-gradient(135deg, ${pick.color}, ${pick.color}cc)` }}
-          >
-            <GraduationCap size={20} className="text-white" strokeWidth={2.25} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold">
-              Today's skill
-            </p>
-            <h3 className="mt-0.5 font-display font-bold text-title text-ink-900 dark:text-ink-100 leading-tight tracking-tight">
-              {pick.title}
-            </h3>
-            <p className="mt-1 text-caption text-ink-600 dark:text-ink-300 leading-relaxed">
-              Taught by {pick.teacherFlag} {pick.teacher}
-            </p>
-          </div>
-          <ArrowRight size={18} className="text-ink-600 dark:text-ink-300 flex-shrink-0 mt-1" strokeWidth={2.5} />
-        </div>
-        <div className="relative flex items-center gap-2 mt-4">
-          <span className="flex items-center gap-1 px-2.5 py-1 rounded-capsule glass text-[11px] font-bold text-ink-900 dark:text-ink-100">
-            <Clock size={11} strokeWidth={2.5} />
-            {pick.duration}
-          </span>
-          <span className="flex items-center gap-1 px-2.5 py-1 rounded-capsule glass text-[11px] font-bold text-ink-900 dark:text-ink-100">
-            <Users size={11} strokeWidth={2.5} />
-            {pick.learners} learning
-          </span>
-          <span className="ml-auto px-2.5 py-1 rounded-capsule glass text-[11px] font-bold text-ink-900 dark:text-ink-100 capitalize">
-            {pick.difficulty}
-          </span>
-        </div>
-      </motion.button>
-    </div>
-  );
+function todayKey(): string {
+  return new Date().toISOString().split('T')[0];
 }
 
 export default function Home() {
-  const { user, checkIns, challenges, lightBotHasNudge, setActiveTab } = useStore();
+  const {
+    user,
+    checkIns,
+    challenges,
+    dailyTip,
+    weeklyInsight,
+    setActiveTab,
+    ensureWeeklyInsight,
+  } = useStore();
+
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
+
+  useEffect(() => {
+    ensureWeeklyInsight();
+  }, [ensureWeeklyInsight, checkIns]);
+
+  const today = todayKey();
+  const todayCheckIn = checkIns.find((c) => c.date === today);
+  const checkedInToday = Boolean(todayCheckIn?.completed);
+  const displayCheckIn =
+    (checkedInToday ? todayCheckIn : null) ??
+    [...checkIns].reverse().find((c) => c.completed) ??
+    null;
+
+  const lifeScore = checkedInToday
+    ? todayCheckIn!.score
+    : displayCheckIn?.score ?? user.currentScore;
+
+  const tip =
+    dailyTip ??
+    todayCheckIn?.tip ??
+    displayCheckIn?.tip ??
+    (checkedInToday
+      ? null
+      : 'Check in once a day — mood, sleep, screen, and social battery become your Life Balance score.');
 
   const last7 = checkIns.slice(-7);
-  const yesterdayCheckIn = checkIns[checkIns.length - 2];
-
-  const todayChallenge = challenges.find((c) => !c.completed);
-
-  const screenTimeColor = yesterdayCheckIn && yesterdayCheckIn.screenTime <= 3
-    ? 'text-mint-500'
-    : yesterdayCheckIn && yesterdayCheckIn.screenTime <= 5
-      ? 'text-lighthouse-500'
-      : 'text-coral-500';
-
   const maxScore = Math.max(...last7.map((d) => d.score || 0), 80);
+  const todayChallenge = challenges.find((c) => !c.completed);
+  const weeklyUnlocked = canUnlockWeeklyInsights(checkIns);
+
+  const screenTimeColor =
+    displayCheckIn && displayCheckIn.screenTime <= 3
+      ? 'text-mint-500'
+      : displayCheckIn && displayCheckIn.screenTime <= 5
+        ? 'text-lighthouse-500'
+        : 'text-coral-500';
 
   return (
     <div className="screen-scroll">
-      {/* Ambient aurora backdrop */}
       <div className="aurora-mesh" />
       <div className="noise-overlay" />
 
@@ -125,22 +93,62 @@ export default function Home() {
               <span className="text-gradient-ember">{user.name}</span>
             </h1>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-capsule glass text-caption text-ink-900 dark:text-ink-100 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-lighthouse-500" />
-            28° Dhaka
-          </div>
         </div>
       </div>
 
-      {/* Hero Card: Score + Summary */}
-      <div className="px-6 mt-6">
+      {/* Daily check-in CTA */}
+      <div className="px-6 mt-5">
+        {checkedInToday ? (
+          <div className="flex items-center gap-3 p-3.5 rounded-card glass">
+            <div className="w-10 h-10 rounded-full bg-mint-500/15 flex items-center justify-center">
+              <ClipboardCheck size={18} className="text-mint-600 dark:text-mint-300" strokeWidth={2.5} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-display font-bold text-body text-ink-900 dark:text-ink-100">
+                Today&apos;s check-in saved
+              </p>
+              <p className="text-caption text-ink-600 dark:text-ink-300">
+                Life Balance updated from mood, sleep, screen & social battery
+              </p>
+            </div>
+          </div>
+        ) : (
+          <motion.button
+            type="button"
+            className="relative w-full overflow-hidden p-4 rounded-hero hero-glow text-left shadow-medium shine"
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setCheckInOpen(true)}
+          >
+            <div
+              className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.28), transparent 70%)', filter: 'blur(20px)' }}
+            />
+            <div className="relative flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-white/25 flex items-center justify-center shrink-0">
+                <ClipboardCheck size={20} className="text-white" strokeWidth={2.5} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-display font-bold text-title text-white">
+                  Daily check-in · ~30 sec
+                </p>
+                <p className="text-caption text-white/90 mt-0.5">
+                  Mood · Sleep · Screen time · Social battery
+                </p>
+              </div>
+              <ArrowRight size={18} className="text-white shrink-0" strokeWidth={2.5} />
+            </div>
+          </motion.button>
+        )}
+      </div>
+
+      {/* Hero: Life Balance */}
+      <div className="px-6 mt-5">
         <motion.div
           className="relative overflow-hidden rounded-hero glass-strong p-5"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          {/* Warm aurora blob inside the hero */}
           <div
             className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
             style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(30px)' }}
@@ -151,13 +159,11 @@ export default function Home() {
           />
 
           <div className="relative flex items-center gap-5">
-            {/* Score ring */}
             <div className="relative flex-shrink-0">
               <div className="absolute inset-0 rounded-full bg-lighthouse-300/30 blur-2xl scale-110" />
-              <ScoreRing score={user.currentScore} size={140} />
+              <ScoreRing score={lifeScore} size={140} />
             </div>
 
-            {/* Right column */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <Sparkles size={13} className="text-lighthouse-600" />
@@ -165,13 +171,16 @@ export default function Home() {
                   Life Balance
                 </span>
               </div>
+              <p className="mt-1.5 text-caption text-ink-600 dark:text-ink-300 leading-snug">
+                Built from today&apos;s four check-in signals — not a mystery number.
+              </p>
 
-              <div className="mt-2 flex items-baseline gap-2">
+              <div className="mt-3 flex items-baseline gap-2">
                 <TrendingUp size={16} className="text-mint-500" strokeWidth={2.5} />
                 <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
-                  +{user.weeklyChange}
+                  {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
                 </span>
-                <span className="text-caption text-ink-600 dark:text-ink-300">this week</span>
+                <span className="text-caption text-ink-600 dark:text-ink-300">vs yesterday</span>
               </div>
 
               <div className="mt-3 flex items-center gap-2 px-2.5 py-1.5 rounded-capsule bg-coral-500/10 border border-coral-500/20 w-fit">
@@ -181,14 +190,13 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* 7-day mini bars */}
               <div className="mt-4 flex items-end gap-1 h-10">
                 {last7.map((day, i) => {
                   const h = Math.max(16, ((day.score || 0) / maxScore) * 100);
                   const isToday = i === last7.length - 1;
                   return (
                     <motion.div
-                      key={i}
+                      key={day.date}
                       className="flex-1 rounded-sm"
                       style={{
                         background: isToday
@@ -199,38 +207,128 @@ export default function Home() {
                       }}
                       initial={{ height: 0 }}
                       animate={{ height: `${h}%` }}
-                      transition={{ delay: 0.2 + i * 0.05, type: 'spring', stiffness: 160, damping: 22 }}
+                      transition={{ delay: 0.15 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
                     />
                   );
                 })}
               </div>
-              <div className="mt-1 flex items-center justify-between">
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                  <span
-                    key={i}
-                    className={`text-[10px] font-bold flex-1 text-center ${
-                      i === last7.length - 1
-                        ? 'text-coral-500'
-                        : 'text-ink-600/60 dark:text-ink-300/60'
-                    }`}
-                  >
-                    {d}
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
 
-          <motion.div
-            className="relative mt-4 flex items-center justify-center gap-1.5 py-2 rounded-capsule bg-mint-500/10 border border-mint-500/20 text-mint-700 dark:text-mint-300 text-caption font-semibold"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-          >
-            <Zap size={14} />
-            Your best day this week was {last7.reduce((a, b) => (a.score > b.score ? a : b)).score} points
-          </motion.div>
+          {tip && (
+            <motion.div
+              className="relative mt-4 p-3.5 rounded-card bg-mint-500/10 border border-mint-500/20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.35 }}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <Zap size={13} className="text-mint-600 dark:text-mint-300" />
+                <span className="text-micro uppercase tracking-[0.14em] font-bold text-mint-700 dark:text-mint-300">
+                  AI tip
+                </span>
+              </div>
+              <p className="text-caption text-ink-900 dark:text-ink-100 leading-relaxed font-medium">
+                {tip}
+              </p>
+            </motion.div>
+          )}
         </motion.div>
+      </div>
+
+      {/* Today's four signals */}
+      <div className="px-6 mt-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
+            Today&apos;s signals
+          </h2>
+          {!checkedInToday && (
+            <button
+              type="button"
+              className="text-micro uppercase tracking-[0.14em] text-lighthouse-600 font-bold"
+              onClick={() => setCheckInOpen(true)}
+            >
+              Record
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <SignalTile
+            icon={<Battery size={16} className="text-mint-500" />}
+            label={t('home.social_battery')}
+            value={displayCheckIn ? `${displayCheckIn.socialBattery}%` : '--'}
+            onClick={() => !checkedInToday && setCheckInOpen(true)}
+          />
+          <SignalTile
+            icon={<Moon size={16} className="text-ocean-500" />}
+            label={t('home.sleep')}
+            value={displayCheckIn ? `${displayCheckIn.sleep}h` : '--'}
+            onClick={() => !checkedInToday && setCheckInOpen(true)}
+          />
+          <SignalTile
+            icon={<Smartphone size={16} className={displayCheckIn ? screenTimeColor : 'text-ink-300'} />}
+            label={t('home.screen_time')}
+            value={displayCheckIn ? `${displayCheckIn.screenTime}h` : '--'}
+            valueClass={displayCheckIn ? screenTimeColor : undefined}
+            onClick={() => !checkedInToday && setCheckInOpen(true)}
+          />
+          <SignalTile
+            icon={<span className="text-sm">{moodEmojis[displayCheckIn?.mood ?? 2]}</span>}
+            label={t('home.mood')}
+            value={
+              displayCheckIn
+                ? moodLabels[displayCheckIn.mood] ?? '--'
+                : '--'
+            }
+            onClick={() => !checkedInToday && setCheckInOpen(true)}
+          />
+        </div>
+      </div>
+
+      {/* Weekly insights */}
+      <div className="px-6 mt-5">
+        {weeklyUnlocked && weeklyInsight ? (
+          <motion.button
+            type="button"
+            className="relative w-full overflow-hidden p-4 rounded-hero glass-strong text-left"
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setWeeklyOpen(true)}
+          >
+            <div
+              className="absolute -top-14 -right-14 w-40 h-40 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.4), transparent 70%)', filter: 'blur(24px)' }}
+            />
+            <div className="relative flex items-start gap-3">
+              <div className="w-11 h-11 rounded-[14px] flex items-center justify-center shadow-soft shrink-0"
+                style={{ background: 'linear-gradient(135deg, #A78BFA, #FF6B7A)' }}
+              >
+                <FlaskConical size={18} className="text-white" strokeWidth={2.4} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-micro uppercase tracking-[0.14em] font-bold text-ink-600 dark:text-ink-300">
+                  Weekly AI Insights
+                </p>
+                <p className="mt-0.5 font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                  {weeklyInsight.experiment.title}
+                </p>
+                <p className="mt-1 text-caption text-ink-600 dark:text-ink-300 line-clamp-2">
+                  {weeklyInsight.summary}
+                </p>
+              </div>
+              <ArrowRight size={18} className="text-ink-600 dark:text-ink-300 shrink-0 mt-1" strokeWidth={2.5} />
+            </div>
+          </motion.button>
+        ) : (
+          <div className="p-4 rounded-hero glass text-center">
+            <p className="font-display font-bold text-body text-ink-900 dark:text-ink-100">
+              Weekly AI Insights unlock soon
+            </p>
+            <p className="mt-1 text-caption text-ink-600 dark:text-ink-300 leading-relaxed">
+              Check in for {Math.max(0, 7 - checkIns.filter((c) => c.completed).length)} more day
+              {Math.max(0, 7 - checkIns.filter((c) => c.completed).length) === 1 ? '' : 's'} to get a personal pattern read and a wellness experiment.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Today's Challenge */}
@@ -273,102 +371,70 @@ export default function Home() {
               </div>
               <ArrowRight size={18} className="text-white flex-shrink-0 mt-1" strokeWidth={2.5} />
             </div>
-            <div className="relative flex items-center gap-2 mt-4">
-              <span className="px-2.5 py-1 rounded-capsule bg-white/25 backdrop-blur-sm text-[11px] font-bold text-white capitalize">
-                {todayChallenge.difficulty}
-              </span>
-              <span className="px-2.5 py-1 rounded-capsule bg-white/25 backdrop-blur-sm text-[11px] font-bold text-white">
-                {todayChallenge.timeEstimate}
-              </span>
-              <span className="ml-auto text-[11px] font-bold text-white/90">
-                Tap to start
-              </span>
-            </div>
           </motion.button>
         </div>
       )}
 
-      {/* Quick Stats Bento */}
-      <div className="px-6 mt-6">
-        <div className="grid grid-cols-2 gap-3">
-          <motion.div
-            className="p-4 rounded-card glass shadow-soft"
-            whileTap={{ scale: 0.97 }}
-          >
-            <div className="flex items-center gap-2">
-              <Battery size={16} className="text-mint-500" />
-              <span className="text-caption text-ink-600 dark:text-ink-300">{t('home.social_battery')}</span>
-            </div>
-            <p className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 mt-2">
-              {yesterdayCheckIn?.socialBattery ?? '--'}%
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="p-4 rounded-card glass shadow-soft"
-            whileTap={{ scale: 0.97 }}
-          >
-            <div className="flex items-center gap-2">
-              <Moon size={16} className="text-ocean-500" />
-              <span className="text-caption text-ink-600 dark:text-ink-300">{t('home.sleep')}</span>
-            </div>
-            <p className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 mt-2">
-              {yesterdayCheckIn?.sleep ?? '--'}h
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="p-4 rounded-card glass shadow-soft"
-            whileTap={{ scale: 0.97 }}
-          >
-            <div className="flex items-center gap-2">
-              <Smartphone size={16} className={screenTimeColor} />
-              <span className="text-caption text-ink-600 dark:text-ink-300">{t('home.screen_time')}</span>
-            </div>
-            <p className={`font-display font-bold text-display-l mt-2 ${screenTimeColor}`}>
-              {yesterdayCheckIn?.screenTime ?? '--'}h
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="p-4 rounded-card glass shadow-soft"
-            whileTap={{ scale: 0.97 }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{moodEmojis[yesterdayCheckIn?.mood ?? 2]}</span>
-              <span className="text-caption text-ink-600 dark:text-ink-300">{t('home.mood')}</span>
-            </div>
-            <p className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 mt-2">
-              {yesterdayCheckIn ? moodLabels[yesterdayCheckIn.mood] ?? '--' : '--'}
-            </p>
-          </motion.div>
+      {/* Lumi guide */}
+      <div className="px-6 mt-6 mb-2">
+        <div className="p-4 rounded-card glass flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full hero-glow flex items-center justify-center shadow-soft shrink-0">
+            <Sparkles size={16} className="text-white" strokeWidth={2.5} />
+          </div>
+          <p className="text-caption text-ink-900 dark:text-ink-100 leading-relaxed font-medium">
+            Find <span className="font-display font-bold">Lumi</span> in the center tab whenever you need a gentle hand.
+          </p>
         </div>
       </div>
 
-      {/* Learn something new */}
-      <LearnSomethingNew />
-
-      {/* Lumi nudge */}
-      {lightBotHasNudge && (
-        <div className="px-6 mt-6">
-          <motion.div
-            className="p-4 rounded-card glass-tint-warm flex items-center gap-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.5 }}
-          >
-            <Lumi pose="headphones" size={56} animate={false} />
-            <div className="flex-1">
-              <p className="text-body text-ink-900 dark:text-ink-100 font-medium">
-                {t('home.nudge')}
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Spacer */}
       <div className="h-6" />
+
+      <DailyCheckIn
+        isOpen={checkInOpen}
+        onClose={() => setCheckInOpen(false)}
+        onFinished={(out) => {
+          if (out.weeklyReady) {
+            ensureWeeklyInsight();
+            setTimeout(() => setWeeklyOpen(true), 2400);
+          }
+        }}
+      />
+      <WeeklyInsights
+        isOpen={weeklyOpen}
+        onClose={() => setWeeklyOpen(false)}
+        insight={weeklyInsight}
+      />
     </div>
+  );
+}
+
+function SignalTile({
+  icon,
+  label,
+  value,
+  valueClass,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  valueClass?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <motion.button
+      type="button"
+      className="p-4 rounded-card glass shadow-soft text-left"
+      whileTap={{ scale: 0.97 }}
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-caption text-ink-600 dark:text-ink-300">{label}</span>
+      </div>
+      <p className={`font-display font-bold text-display-l mt-2 text-ink-900 dark:text-ink-100 ${valueClass ?? ''}`}>
+        {value}
+      </p>
+    </motion.button>
   );
 }

@@ -6,6 +6,8 @@ export interface CheckIn {
   socialBattery: number;
   score: number;
   completed: boolean;
+  /** Short AI tip saved with today's check-in. */
+  tip?: string;
 }
 
 export interface Challenge {

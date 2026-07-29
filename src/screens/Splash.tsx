@@ -30,7 +30,7 @@ const slides: Slide[] = [
     eyebrow: 'Your week, visualized',
     title: 'Track what',
     highlight: 'actually matters',
-    body: 'Sleep, screen time, and challenges — see your week light up as a single Life Balance score.',
+    body: 'Check in once a day on mood, sleep, screen, and social battery — your Life Balance score updates automatically, with AI tips as your week builds.',
     icon: TrendingUp,
     accent: 'from-lighthouse-500 to-coral-500',
     preview: 'score',
