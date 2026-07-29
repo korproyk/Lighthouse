@@ -375,12 +375,12 @@ export default function Home() {
       )}
 
       {/* Lumi guide */}
-      <div className="px-6 mt-6 mb-2">
-        <div className="p-4 rounded-card glass flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full hero-glow flex items-center justify-center shadow-soft shrink-0">
-            <Sparkles size={16} className="text-white" strokeWidth={2.5} />
+      <div className="px-6 mt-5 mb-2">
+        <div className="px-3 py-2.5 rounded-card glass flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-full hero-glow flex items-center justify-center shadow-soft shrink-0">
+            <Sparkles size={12} className="text-white" strokeWidth={2.5} />
           </div>
-          <p className="text-caption text-ink-900 dark:text-ink-100 leading-relaxed font-medium">
+          <p className="text-[11px] leading-snug text-ink-900 dark:text-ink-100 font-medium">
             Find <span className="font-display font-bold">Lumi</span> in the center tab whenever you need a gentle hand.
           </p>
         </div>
