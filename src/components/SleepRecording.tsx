@@ -31,6 +31,18 @@ function formatStamp(ts: number): string {
   });
 }
 
+/** Split "10:47 PM" so the period can sit smaller beside the time. */
+function formatClockParts(ts: number): { time: string; period: string } {
+  const raw = new Date(ts).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const match = raw.match(/^(.+?)\s*([AaPp][Mm])$/);
+  if (match) return { time: match[1], period: match[2].toUpperCase() };
+  return { time: raw, period: '' };
+}
+
 /** Two filled dots → first tap empties left → second empties right + fires. */
 function ConfirmDots({
   taps,
@@ -70,6 +82,8 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
   } = useStore();
 
   const [now, setNow] = useState(Date.now());
+  /** Local clock for NOW / wake-around; ticks every minute while open. */
+  const [clock, setClock] = useState(Date.now());
   /** Chosen before bedtime; locked once sleep starts (same check UI as before). */
   const [minus20, setMinus20] = useState(true);
   const [bedTap, setBedTap] = useState(0);
@@ -85,6 +99,13 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [isOpen, sleepSession]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setClock(Date.now());
+    const id = setInterval(() => setClock(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, [isOpen]);
 
   useEffect(() => () => {
     if (bedTimer.current) clearTimeout(bedTimer.current);
@@ -106,6 +127,9 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
   const goalMs = SLEEP_GOAL_HOURS * 3_600_000;
   const timerCovered = sleeping && elapsedMs < goalMs;
   const goalReached = sleeping && elapsedMs >= goalMs;
+
+  const nowParts = formatClockParts(clock);
+  const wakeParts = formatClockParts(clock + SLEEP_GOAL_HOURS * 3_600_000);
 
   const confirmBedtime = () => {
     startSleepSession(minus20);
@@ -276,6 +300,39 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                       </motion.div>
                     ) : null}
                   </AnimatePresence>
+
+                  {/* NOW / recommended wake — equal columns, no arrow */}
+                  <div className="mt-3.5 pt-3.5 border-t border-ink-100/80 dark:border-white/10 flex items-start">
+                    <div className="flex-1 min-w-0 flex flex-col items-center px-1">
+                      <Moon size={15} className="text-[#8B7EF6]" strokeWidth={2.25} aria-hidden />
+                      <p className="mt-1 text-[9px] font-bold uppercase tracking-wide text-ink-300 leading-none">
+                        Now
+                      </p>
+                      <p className="mt-1.5 font-display font-bold text-[1.15rem] leading-none tracking-tight text-ink-900 dark:text-ink-100 tabular-nums">
+                        {nowParts.time}
+                        {nowParts.period ? (
+                          <span className="ml-1 text-[0.65em] font-semibold tracking-normal">
+                            {nowParts.period}
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
+
+                    <div className="flex-1 min-w-0 flex flex-col items-center px-1">
+                      <Sun size={15} className="text-[#FFB547]" strokeWidth={2.25} aria-hidden />
+                      <p className="mt-1 text-[9px] font-bold uppercase tracking-wide text-ink-300 leading-none">
+                        Wake up around
+                      </p>
+                      <p className="mt-1.5 font-display font-bold text-[1.3rem] leading-none tracking-tight text-lighthouse-600 dark:text-lighthouse-300 tabular-nums">
+                        {wakeParts.time}
+                        {wakeParts.period ? (
+                          <span className="ml-1 text-[0.6em] font-semibold tracking-normal text-ink-900 dark:text-ink-100">
+                            {wakeParts.period}
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
 
