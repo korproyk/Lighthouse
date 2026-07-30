@@ -19,6 +19,7 @@ import { compressProofPhoto } from '../lib/proofPhoto';
 
 const moodEmojis = ['\u{1F614}', '\u{1F615}', '\u{1F610}', '\u{1F642}', '\u{1F60A}'];
 const moodLabels = ['Sad', 'Meh', 'Okay', 'Good', 'Great'];
+const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -41,11 +42,18 @@ export default function Home() {
     ensureWeeklyInsight,
     ensurePersonalChallenge,
     completePersonalChallenge,
+    hasAccount,
   } = useStore();
 
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [savedToastOpen, setSavedToastOpen] = useState(false);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
+  // DEV-ONLY Demo Weekly Insights — remove with src/dev/demoWeeklyInsights.ts
+  const [demoWeeklyOpen, setDemoWeeklyOpen] = useState(false);
+  const [demoWeekly, setDemoWeekly] = useState<{
+    checkIns: import('../lib/mockData').CheckIn[];
+    insight: import('../lib/lifeBalance').WeeklyInsight;
+  } | null>(null);
   const [balanceTipOpen, setBalanceTipOpen] = useState(false);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
@@ -101,8 +109,11 @@ export default function Home() {
     return { filled: false, score: 0 };
   });
   const maxStreakScore = Math.max(...streakScores, 1);
+  // Mon-first index so labels align with M T W T F S S
+  const todayWeekdayIndex = (new Date().getDay() + 6) % 7;
 
   const weeklyUnlocked = canUnlockWeeklyInsights(checkIns);
+  const isAuthenticated = hasAccount(user.name);
 
   const screenTimeColor =
     checkedInToday && todayCheckIn && todayCheckIn.screenTime <= 3
@@ -267,26 +278,42 @@ export default function Home() {
             </div>
           )}
 
-          <div className="mt-2.5 flex items-end gap-1.5 h-8">
-            {streakSlots.map((slot, i) => {
-              const h = slot.filled
-                ? Math.max(28, (slot.score / maxStreakScore) * 78)
-                : 16;
-              return (
-                <motion.div
-                  key={i}
-                  className="flex-1 rounded-full"
-                  style={{
-                    background: slot.filled
-                      ? 'linear-gradient(180deg, #34D399, #10B981)'
-                      : 'rgba(14,11,8,0.08)',
-                  }}
-                  initial={{ height: 6 }}
-                  animate={{ height: `${h}%` }}
-                  transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
-                />
-              );
-            })}
+          <div className="mt-2.5">
+            <div className="flex items-end gap-1.5 h-8">
+              {streakSlots.map((slot, i) => {
+                const h = slot.filled
+                  ? Math.max(28, (slot.score / maxStreakScore) * 78)
+                  : 16;
+                return (
+                  <motion.div
+                    key={i}
+                    className="flex-1 rounded-full"
+                    style={{
+                      background: slot.filled
+                        ? 'linear-gradient(180deg, #34D399, #10B981)'
+                        : 'rgba(14,11,8,0.08)',
+                    }}
+                    initial={{ height: 6 }}
+                    animate={{ height: `${h}%` }}
+                    transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
+                  />
+                );
+              })}
+            </div>
+            <div className="mt-1 flex gap-1.5">
+              {WEEKDAY_LABELS.map((label, i) => (
+                <span
+                  key={`${label}-${i}`}
+                  className={`flex-1 text-center text-micro font-normal tracking-normal leading-none ${
+                    i === todayWeekdayIndex
+                      ? 'text-lighthouse-500'
+                      : 'text-ink-600 dark:text-ink-300'
+                  }`}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -312,20 +339,20 @@ export default function Home() {
           <p className="text-caption text-ink-900 dark:text-ink-100 leading-relaxed font-medium">
             {tip}
           </p>
-          {!weeklyUnlocked && (
+          {isAuthenticated && !weeklyUnlocked && (
             <>
               <div
                 className="mt-3 mb-2.5 border-t border-ink-100/80 dark:border-white/10"
                 aria-hidden
               />
-              <div className="flex items-center gap-1 min-w-0">
+              <div className="flex items-start gap-1 min-w-0">
                 <Lock
                   size={10}
-                  className="text-ink-600 dark:text-ink-300 shrink-0"
+                  className="text-ink-600 dark:text-ink-300 shrink-0 mt-0.5"
                   strokeWidth={2}
                 />
-                <span className="text-micro font-normal tracking-normal text-ink-600 dark:text-ink-300 leading-none whitespace-nowrap">
-                  Complete 7 days of check-ins to unlock Weekly AI Insights.
+                <span className="text-micro font-normal tracking-normal text-ink-600 dark:text-ink-300 leading-snug">
+                  Weekly Insights unlock after 7 check-ins.
                 </span>
               </div>
             </>
@@ -605,6 +632,29 @@ export default function Home() {
         </div>
       )}
 
+      {/* DEV-ONLY: Demo Weekly Insights — delete this block + src/dev/demoWeeklyInsights.ts before production */}
+      {import.meta.env.DEV && (
+        <div className="px-6 mt-3">
+          <button
+            type="button"
+            className="w-full px-3 py-2.5 rounded-card border border-dashed border-lighthouse-500/50 text-left"
+            onClick={() => {
+              void import('../dev/demoWeeklyInsights').then((mod) => {
+                setDemoWeekly(mod.buildDemoWeeklyInsight());
+                setDemoWeeklyOpen(true);
+              });
+            }}
+          >
+            <p className="text-micro uppercase tracking-[0.14em] font-bold text-lighthouse-600">
+              Generate Demo Weekly Insights
+            </p>
+            <p className="mt-0.5 text-caption text-ink-600 dark:text-ink-300">
+              Instant 7-day sample preview · never saved to your account
+            </p>
+          </button>
+        </div>
+      )}
+
       <div className="px-6 mt-5 mb-2">
         <div className="px-3 py-2.5 rounded-card glass flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full hero-glow flex items-center justify-center shadow-soft shrink-0">
@@ -644,6 +694,16 @@ export default function Home() {
         onClose={() => setWeeklyOpen(false)}
         insight={weeklyInsight}
       />
+      {/* DEV-ONLY Demo Weekly Insights sheet — remove with demoWeeklyInsights.ts */}
+      {import.meta.env.DEV && (
+        <WeeklyInsights
+          isOpen={demoWeeklyOpen}
+          onClose={() => setDemoWeeklyOpen(false)}
+          insight={demoWeekly?.insight ?? null}
+          checkInsOverride={demoWeekly?.checkIns}
+          isDemo
+        />
+      )}
 
       <BottomSheet
         isOpen={challengeOpen && Boolean(todayChallenge) && !todayChallenge?.completed}

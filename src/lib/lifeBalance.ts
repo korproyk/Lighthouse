@@ -11,7 +11,31 @@ export interface WeeklyInsight {
   experiment: WellnessExperiment;
   generatedAt: string;
   daysAnalyzed: number;
+  /** Explainable AI fields derived from the user's own check-ins. */
+  insightTitle: string;
+  insightSummary: string;
+  evidenceSummary: string;
+  dataCategoriesUsed: string[];
+  validDaysAnalyzed: number;
+  recommendation: string;
 }
+
+/** Teen-friendly note for the collapsible “how” section — not a medical claim. */
+export const WEEKLY_INSIGHT_METHOD_NOTE =
+  'We compared your check-in signals across these days and looked for patterns that tended to appear together — without assuming one caused the other.';
+
+/** Categories the explainable section may surface (only if valid data exists). */
+export const WEEKLY_DATA_CATEGORIES = [
+  'Sleep',
+  'Screen Time',
+  'Mood',
+  'Energy',
+  'Physical Symptoms',
+] as const;
+
+export type WeeklyDataCategory = (typeof WEEKLY_DATA_CATEGORIES)[number];
+
+const MIN_CATEGORY_DAYS = 4;
 
 const EXPERIMENTS: WellnessExperiment[] = [
   {
@@ -268,8 +292,171 @@ export function canUnlockWeeklyInsights(checkIns: CheckIn[]): boolean {
   return completedCheckIns(checkIns).length >= 7;
 }
 
-export function generateWeeklyInsight(checkIns: CheckIn[]): WeeklyInsight | null {
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, n) => sum + n, 0) / values.length;
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+/** Which check-in categories have enough real values in the 7-day window. */
+export function resolveWeeklyDataCategories(done: CheckIn[]): WeeklyDataCategory[] {
+  const used: WeeklyDataCategory[] = [];
+  const sleepDays = done.filter((c) => typeof c.sleep === 'number' && c.sleep > 0).length;
+  const screenDays = done.filter((c) => typeof c.screenTime === 'number' && c.screenTime >= 0).length;
+  const moodDays = done.filter((c) => typeof c.mood === 'number' && c.mood >= 0 && c.mood <= 4).length;
+  const energyDays = done.filter(
+    (c) => typeof c.socialBattery === 'number' && c.socialBattery > 0
+  ).length;
+
+  if (sleepDays >= MIN_CATEGORY_DAYS) used.push('Sleep');
+  if (screenDays >= MIN_CATEGORY_DAYS) used.push('Screen Time');
+  if (moodDays >= MIN_CATEGORY_DAYS) used.push('Mood');
+  if (energyDays >= MIN_CATEGORY_DAYS) used.push('Energy');
+  // Physical Symptoms are not stored on daily check-ins — never invent them.
+  return used;
+}
+
+type Signal = {
+  key: string;
+  shortLabel: string;
+  lowPhrase: string;
+  highPhrase: string;
+  values: number[];
+};
+
+function buildEvidenceSummary(done: CheckIn[], categories: WeeklyDataCategory[]): string {
+  const signals: Signal[] = [];
+  if (categories.includes('Sleep')) {
+    signals.push({
+      key: 'sleep',
+      shortLabel: 'sleep',
+      lowPhrase: 'shorter sleep',
+      highPhrase: 'longer sleep',
+      values: done.map((c) => c.sleep),
+    });
+  }
+  if (categories.includes('Screen Time')) {
+    signals.push({
+      key: 'screen',
+      shortLabel: 'screen time',
+      lowPhrase: 'lower screen time',
+      highPhrase: 'higher screen time',
+      values: done.map((c) => c.screenTime),
+    });
+  }
+  if (categories.includes('Mood')) {
+    signals.push({
+      key: 'mood',
+      shortLabel: 'mood',
+      lowPhrase: 'lower mood',
+      highPhrase: 'higher mood',
+      values: done.map((c) => c.mood),
+    });
+  }
+  if (categories.includes('Energy')) {
+    signals.push({
+      key: 'energy',
+      shortLabel: 'energy',
+      lowPhrase: 'lower energy',
+      highPhrase: 'higher energy',
+      values: done.map((c) => c.socialBattery),
+    });
+  }
+
+  if (signals.length < 2) {
+    return `Across ${done.length} check-ins, your logged signals looked fairly steady — keep checking in to spot clearer personal patterns.`;
+  }
+
+  let best: { strength: number; text: string } | null = null;
+
+  for (const split of signals) {
+    const med = median(split.values);
+    const lowIdx: number[] = [];
+    const highIdx: number[] = [];
+    split.values.forEach((v, idx) => {
+      if (v <= med) lowIdx.push(idx);
+      else highIdx.push(idx);
+    });
+    if (lowIdx.length < 2 || highIdx.length < 2) continue;
+
+    for (const outcome of signals) {
+      if (outcome.key === split.key) continue;
+      const lowMean = mean(lowIdx.map((i) => outcome.values[i]));
+      const highMean = mean(highIdx.map((i) => outcome.values[i]));
+      const diff = highMean - lowMean;
+      const scale = Math.max(Math.abs(mean(outcome.values)), 0.35);
+      const strength = Math.abs(diff) / scale;
+      if (strength < 0.08) continue;
+
+      const whenLow =
+        diff < 0
+          ? `Days with ${split.lowPhrase} tended to come with ${outcome.highPhrase}.`
+          : `Days with ${split.lowPhrase} tended to come with ${outcome.lowPhrase}.`;
+      const whenHigh =
+        diff > 0
+          ? `${outcome.highPhrase.charAt(0).toUpperCase()}${outcome.highPhrase.slice(1)} was associated with ${split.highPhrase} across your check-ins.`
+          : `${outcome.lowPhrase.charAt(0).toUpperCase()}${outcome.lowPhrase.slice(1)} appeared more often on days with ${split.highPhrase}.`;
+
+      // Prefer teen-friendly "days with X tended to…" phrasing
+      const text = strength >= 0.2 ? whenLow : whenHigh;
+      if (!best || strength > best.strength) {
+        best = { strength, text };
+      }
+    }
+  }
+
+  if (best) return best.text;
+
+  const names = categories.slice(0, 3).join(', ');
+  return `${names} appeared in your last ${done.length} check-ins, with no single strong link standing out yet.`;
+}
+
+/** Build / refresh explainable fields from the signed-in user's check-ins. */
+export function buildWeeklyExplainability(
+  checkIns: CheckIn[]
+): Pick<
+  WeeklyInsight,
+  | 'insightTitle'
+  | 'insightSummary'
+  | 'evidenceSummary'
+  | 'dataCategoriesUsed'
+  | 'validDaysAnalyzed'
+  | 'recommendation'
+> | null {
   const done = completedCheckIns(checkIns).slice(-7);
+  if (done.length < 7) return null;
+
+  const dataCategoriesUsed = resolveWeeklyDataCategories(done);
+  const base = generateWeeklyInsightCore(done);
+  if (!base) return null;
+
+  return {
+    insightTitle: base.experiment.title,
+    insightSummary: base.summary,
+    evidenceSummary: buildEvidenceSummary(done, dataCategoriesUsed),
+    dataCategoriesUsed,
+    validDaysAnalyzed: done.length,
+    recommendation: base.experiment.description,
+  };
+}
+
+function generateWeeklyInsightCore(done: CheckIn[]): Omit<
+  WeeklyInsight,
+  | 'insightTitle'
+  | 'insightSummary'
+  | 'evidenceSummary'
+  | 'dataCategoriesUsed'
+  | 'validDaysAnalyzed'
+  | 'recommendation'
+> | null {
   if (done.length < 7) return null;
 
   const avg = (fn: (c: CheckIn) => number) =>
@@ -323,5 +510,26 @@ export function generateWeeklyInsight(checkIns: CheckIn[]): WeeklyInsight | null
     experiment,
     generatedAt: new Date().toISOString(),
     daysAnalyzed: done.length,
+  };
+}
+
+export function generateWeeklyInsight(checkIns: CheckIn[]): WeeklyInsight | null {
+  const done = completedCheckIns(checkIns).slice(-7);
+  if (done.length < 7) return null;
+
+  const core = generateWeeklyInsightCore(done);
+  if (!core) return null;
+
+  const dataCategoriesUsed = resolveWeeklyDataCategories(done);
+  const evidenceSummary = buildEvidenceSummary(done, dataCategoriesUsed);
+
+  return {
+    ...core,
+    insightTitle: core.experiment.title,
+    insightSummary: core.summary,
+    evidenceSummary,
+    dataCategoriesUsed,
+    validDaysAnalyzed: done.length,
+    recommendation: core.experiment.description,
   };
 }
