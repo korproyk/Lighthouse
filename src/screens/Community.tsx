@@ -46,6 +46,11 @@ export default function Community() {
           <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
             {t('nav.community')}
           </h1>
+          {subTab === 'map' && (
+            <p className="mt-1.5 text-caption text-ink-600 dark:text-ink-300 leading-snug truncate">
+              Anonymous check-ins help spot local health trends.
+            </p>
+          )}
         </div>
 
         {/* Sub-tabs — glass capsule */}
@@ -234,29 +239,33 @@ function BoardView({ onShare }: { onShare: () => void }) {
 }
 
 const symptomColors: Record<string, string> = {
+  Fever: '#EF4444',
+  Cough: '#F97316',
+  'Sore Throat': '#FB7185',
+  Headache: '#DC2626',
+  Fatigue: '#EA580C',
+  'Stomach Pain': '#F59E0B',
+  Diarrhea: '#D97706',
   Doomscrolling: '#FF4D6A',
   FOMO: '#F5A623',
   'Screen Fatigue': '#4A90E2',
   'Sleep Loss': '#8E7CC3',
-  Headache: '#EF4444',
-  Exhaustion: '#DC2626',
-  'Body Ache': '#F97316',
-  'Low Energy': '#EA580C',
-  Other: '#63C5B2',
 };
 
 type HealthDomain = 'digital' | 'physical';
 
 const symptomDomain: Record<string, HealthDomain> = {
+  Fever: 'physical',
+  Cough: 'physical',
+  'Sore Throat': 'physical',
+  Headache: 'physical',
+  Fatigue: 'physical',
+  'Stomach Pain': 'physical',
+  Diarrhea: 'physical',
   Doomscrolling: 'digital',
   FOMO: 'digital',
   'Screen Fatigue': 'digital',
-  Other: 'digital',
-  'Sleep Loss': 'physical',
-  Headache: 'physical',
-  Exhaustion: 'physical',
-  'Body Ache': 'physical',
-  'Low Energy': 'physical',
+  'Sleep Loss': 'digital',
 };
 
 function domainOf(symptom: string): HealthDomain {
@@ -264,8 +273,8 @@ function domainOf(symptom: string): HealthDomain {
 }
 
 const domainFilters: { key: HealthDomain; label: string }[] = [
-  { key: 'digital', label: 'Digital' },
   { key: 'physical', label: 'Physical' },
+  { key: 'digital', label: 'Digital Habits' },
 ];
 
 type AlertLevel = 'normal' | 'slight' | 'watch' | 'warning';
@@ -362,7 +371,7 @@ function MapView() {
   const [loading, setLoading] = useState(true);
   const [showCheckInSheet, setShowCheckInSheet] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
-  const [domainFilter, setDomainFilter] = useState<HealthDomain>('digital');
+  const [domainFilter, setDomainFilter] = useState<HealthDomain>('physical');
   const [alertFilter, setAlertFilter] = useState<AlertFilterKey>('all');
   const [query, setQuery] = useState('');
   const [radiusKm, setRadiusKm] = useState(0);
@@ -535,7 +544,7 @@ function MapView() {
 
   return (
     <div className="mt-4">
-      {/* Digital / Physical — equal split */}
+      {/* Physical / Digital Habits — equal split */}
       <div className="px-6 mb-3">
         <div className="p-1 rounded-capsule glass flex gap-1">
           {domainFilters.map((f) => {
@@ -774,7 +783,7 @@ function ReportForm({
 }: {
   onSubmit: (p: { symptom: string; note: string; locationName: string; lat: number; lng: number }) => Promise<void>;
 }) {
-  const [symptom, setSymptom] = useState('Doomscrolling');
+  const [symptom, setSymptom] = useState('Fever');
   const [note, setNote] = useState('');
   const [locationIdx, setLocationIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);

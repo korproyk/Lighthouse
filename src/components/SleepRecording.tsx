@@ -455,36 +455,31 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                     className={`relative h-full box-border flex ${
                       !sleeping
                         ? 'flex-col items-center justify-center px-2.5 py-3'
-                        : 'flex-col items-start justify-center px-3.5 py-3.5'
+                        : 'flex-col items-start px-3.5 py-[7px]'
                     }`}
                   >
-                    <div
-                      className={`rounded-full flex items-center justify-center shrink-0 ${
-                        !sleeping
-                          ? 'w-8 h-8 bg-ink-100 dark:bg-night-700'
-                          : 'w-9 h-9 bg-[#FFB547] shadow-soft'
-                      }`}
-                    >
-                      <Sun
-                        size={!sleeping ? 14 : 16}
-                        className={!sleeping ? 'text-ink-600 dark:text-ink-300' : 'text-white'}
-                      />
-                    </div>
-
                     {!sleeping ? (
-                      <p className="mt-1 text-[10px] font-bold text-center text-ink-600 dark:text-ink-300 leading-tight">
-                        Awake?
-                      </p>
-                    ) : (
                       <>
-                        <p className="mt-2 font-display font-bold text-[13px] leading-tight text-ink-900 dark:text-ink-100">
+                        <div className="rounded-full flex items-center justify-center shrink-0 w-8 h-8 bg-ink-100 dark:bg-night-700">
+                          <Sun size={14} className="text-ink-600 dark:text-ink-300" />
+                        </div>
+                        <p className="mt-1 text-[10px] font-bold text-center text-ink-600 dark:text-ink-300 leading-tight">
+                          Awake?
+                        </p>
+                      </>
+                    ) : (
+                      <div className="my-auto flex flex-col items-start min-w-0 w-full">
+                        <div className="rounded-full flex items-center justify-center shrink-0 w-9 h-9 bg-[#FFB547] shadow-soft">
+                          <Sun size={16} className="text-white" />
+                        </div>
+                        <p className="mt-0.5 font-display font-bold text-[13px] leading-none text-ink-900 dark:text-ink-100">
                           Are U Awake?
                         </p>
-                        <p className="mt-0.5 text-[10px] text-ink-600 dark:text-ink-300 leading-snug">
+                        <p className="mt-0.5 text-[10px] text-ink-600 dark:text-ink-300 leading-none">
                           {wakeTap === 1 ? 'Tap again to confirm' : 'Double-tap to confirm'}
                         </p>
-                        <ConfirmDots taps={wakeTap} activeColor="#FFB547" />
-                      </>
+                        <ConfirmDots taps={wakeTap} activeColor="#FFB547" className="mt-0.5" />
+                      </div>
                     )}
                   </div>
                 </motion.button>
