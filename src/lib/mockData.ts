@@ -459,6 +459,11 @@ export const challengeGroups: ChallengeGroup[] = [
   },
 ];
 
+export interface LearningSource {
+  label: string;
+  url: string;
+}
+
 export interface LearningSkill {
   id: string;
   title: string;
@@ -471,6 +476,10 @@ export interface LearningSkill {
   difficulty: 'easy' | 'medium' | 'bold';
   description: string;
   color: string;
+  /** Ordered lesson steps shown after “Start learning”. */
+  steps: string[];
+  /** Reliable references shown after the lesson finishes. */
+  sources: LearningSource[];
 }
 
 export const learningSkills: LearningSkill[] = [
@@ -486,6 +495,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'easy',
     description: 'A warm rainy-day meal. You will learn how to wash rice, measure water with your finger, and know when it is done.',
     color: '#FFB27A',
+    steps: [
+      'Wash 1 cup rice and ½ cup lentils until the water runs clearer.',
+      'Add both to a pot with water measured to one finger above the grains.',
+      'Add a pinch of salt, turmeric, and a spoon of oil. Stir once.',
+      'Bring to a boil, then simmer on low with a lid until soft (about 15–20 min).',
+      'Taste, rest 2 minutes off heat, and serve warm. Ask an adult for the stove.',
+    ],
+    sources: [
+      {
+        label: 'BBC Good Food — Easy khichdi',
+        url: 'https://www.bbcgoodfood.com/recipes/easy-khichdi',
+      },
+    ],
   },
   {
     id: 'l2',
@@ -499,6 +521,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'easy',
     description: 'Every grown-up should be able to do this. Four holes, one knot, zero drama.',
     color: '#FF6B7A',
+    steps: [
+      'Thread a needle and knot the end. Mark where the button should sit.',
+      'Push up through fabric and one button hole, then down through the opposite hole.',
+      'Repeat the X pattern 3–4 times so the button feels snug but not glued flat.',
+      'Wrap thread under the button a few times to make a tiny stem, then knot underneath.',
+      'Snip the extra thread. Test the button once before you put the shirt away.',
+    ],
+    sources: [
+      {
+        label: 'WikiHow — How to sew on a button',
+        url: 'https://www.wikihow.com/Sew-on-a-Button',
+      },
+    ],
   },
   {
     id: 'l3',
@@ -512,6 +547,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'easy',
     description: 'T-shirts, pants, and the dreaded fitted sheet. Yes, even that one.',
     color: '#63C5B2',
+    steps: [
+      'Clear a flat surface. Sort: shirts, pants, towels, socks.',
+      'T-shirts: sleeves in, fold in thirds, stack by color.',
+      'Pants: crease front, fold in half lengthwise, then in half again.',
+      'Fitted sheet: tuck elastic corners into each other until it looks like a rectangle, then fold.',
+      'Socks: pair and roll. Put each stack where it lives — done.',
+    ],
+    sources: [
+      {
+        label: 'Real Simple — How to fold a fitted sheet',
+        url: 'https://www.realsimple.com/home-organizing/cleaning/laundry/how-to-fold-a-fitted-sheet',
+      },
+    ],
   },
   {
     id: 'l4',
@@ -525,6 +573,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'easy',
     description: 'Mint, chili, or tomato. From seed to windowsill in 3 weeks.',
     color: '#5FB17F',
+    steps: [
+      'Pick a sunny windowsill and a pot with a drainage hole.',
+      'Fill with soil, press lightly, and poke a finger-deep hole.',
+      'Drop in 2–3 seeds (mint cuttings work too), cover gently, and water until damp — not flooded.',
+      'Label the pot with the plant name and today’s date.',
+      'Check soil daily; water when the top feels dry. Celebrate the first green sprout.',
+    ],
+    sources: [
+      {
+        label: 'RHS — Grow your own from seed',
+        url: 'https://www.rhs.org.uk/vegetables/grow-your-own',
+      },
+    ],
   },
   {
     id: 'l5',
@@ -538,6 +599,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'medium',
     description: 'Flat on the way home? Not anymore. Tools, patches, and the trick to seating the tire.',
     color: '#4A90E2',
+    steps: [
+      'Gather levers, a pump, and a spare tube or patch kit. Flip the bike safely.',
+      'Deflate fully, pry one bead off with levers, and pull the tube out carefully.',
+      'Find the puncture (listen/feel), or swap in a fresh tube. Check the tire for glass/thorns.',
+      'Slightly inflate the tube, seat it under the tire, and work the bead back on without pinching.',
+      'Pump to the pressure on the sidewall. Spin the wheel once to confirm it runs true.',
+    ],
+    sources: [
+      {
+        label: 'Park Tool — Tire & tube removal and installation',
+        url: 'https://www.parktool.com/en-us/blog/repair-help/tire-and-tube-removal-and-installation',
+      },
+    ],
   },
   {
     id: 'l6',
@@ -551,6 +625,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'easy',
     description: 'Needs, wants, and save. A simple split that works for a week\u2019s allowance or a year\u2019s salary.',
     color: '#F5A623',
+    steps: [
+      'Write down the full amount you have this week (e.g. 500).',
+      'Split into three jars or envelopes: Needs (50%), Wants (30%), Save (20%).',
+      'List one Need and one Want you already plan to spend on.',
+      'Move the Save amount somewhere you will not casually open.',
+      'Check mid-week: if Needs ran over, borrow from Wants — never from Save first.',
+    ],
+    sources: [
+      {
+        label: 'NerdWallet — How to budget',
+        url: 'https://www.nerdwallet.com/article/finance/how-to-budget',
+      },
+    ],
   },
   {
     id: 'l7',
@@ -564,6 +651,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'medium',
     description: 'Sugar, baking soda, and patience. Adult help for the hot part.',
     color: '#FFB27A',
+    steps: [
+      'Ask an adult to stay for the hot sugar. Prep a silicone mat or greased foil.',
+      'Melt 2 tbsp sugar in a small pan on low until amber — do not stir hard.',
+      'Kill the heat. Quickly stir in a pinch of baking soda until it foams.',
+      'Pour onto the mat, press gently with a spatula, and stamp a shape if you like.',
+      'Cool fully before peeling. Share one piece — you earned it.',
+    ],
+    sources: [
+      {
+        label: 'Maangchi — Dalgona (ppopgi) recipe',
+        url: 'https://www.maangchi.com/recipe/dalgona',
+      },
+    ],
   },
   {
     id: 'l8',
@@ -577,6 +677,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'medium',
     description: 'Square, bowline, clove hitch, figure-eight, and trucker\u2019s hitch. Camping, hanging, tying a shoe tight.',
     color: '#8E7CC3',
+    steps: [
+      'Practice a square knot: right over left, left over right — flat, not a granny knot.',
+      'Bowline: make a small loop (“the rabbit hole”), rope up through, around the standing line, back down.',
+      'Clove hitch: wrap around a pole twice so the working end tucks under itself.',
+      'Figure-eight: loop, twist once more, and feed the end back through for a stopper.',
+      'Trucker’s hitch: create a loop pulley to tighten a line, then finish with two half-hitches.',
+    ],
+    sources: [
+      {
+        label: 'Animated Knots — Learn essential knots',
+        url: 'https://www.animatedknots.com/',
+      },
+    ],
   },
   {
     id: 'l9',
@@ -590,6 +703,19 @@ export const learningSkills: LearningSkill[] = [
     difficulty: 'easy',
     description: 'One specific thing. One feeling. Sign your name. That\u2019s the whole trick.',
     color: '#FF6B7A',
+    steps: [
+      'Pick one person and one real moment you are thankful for.',
+      'Write: “Thank you for ___.” Keep it specific (not “thanks for everything”).',
+      'Add how it made you feel in one short sentence.',
+      'Sign your name. Draw a tiny doodle if you want.',
+      'Deliver it today — in person, in a bag, or as a message. Done.',
+    ],
+    sources: [
+      {
+        label: 'Greater Good Science Center — Stronger gratitude practice',
+        url: 'https://greatergood.berkeley.edu/article/item/how_to_make_your_gratitude_practice_more_powerful',
+      },
+    ],
   },
 ];
 

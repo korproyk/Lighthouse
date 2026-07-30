@@ -409,22 +409,11 @@ export default function Home() {
       <div className="aurora-mesh" />
       <div className="noise-overlay" />
 
-      {/* Brand + greeting */}
+      {/* Greeting */}
       <div
         className="relative px-6 pb-0"
         style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))' }}
       >
-        <div className="flex items-center gap-2 mb-2.5">
-          <img
-            src="/images/logo.png"
-            alt=""
-            draggable={false}
-            className="w-8 h-8 rounded-[10px] shadow-soft object-cover"
-          />
-          <span className="font-display font-bold text-body text-ink-900 dark:text-ink-100 tracking-tight">
-            Lighthouse
-          </span>
-        </div>
         <div>
           <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-0.5">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}

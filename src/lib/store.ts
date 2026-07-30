@@ -27,6 +27,7 @@ export interface Account {
   language: string;
   joinedGroupId?: string | null;
   customGroups?: ChallengeGroup[];
+  completedLearningIds?: string[];
 }
 
 export interface SleepSession {
@@ -69,6 +70,8 @@ interface AppState {
   weeklyInsight: WeeklyInsight | null;
   lastWeeklyInsightAt: string | null;
   personalChallenge: PersonalChallenge | null;
+  /** Skill ids the user has finished at least once (Learn Center). */
+  completedLearningIds: string[];
   /** Ephemeral — shown globally when XP crosses a tier threshold. */
   tierUpCelebration: TierUpCelebrationState | null;
   /** Tracks which RESET ALL TIERS! wipe has been applied. */
@@ -93,6 +96,7 @@ interface AppState {
   }) => { score: number; tip: string; weeklyReady: boolean } | null;
   dismissWeeklyInsight: () => void;
   ensureWeeklyInsight: () => void;
+  markLearningComplete: (skillId: string) => void;
   dismissNudge: () => void;
   dismissEasterEgg: () => void;
   addBonusPoints: (points: number) => void;
@@ -203,6 +207,7 @@ export const useStore = create<AppState>()(
       weeklyInsight: null,
       lastWeeklyInsightAt: null,
       personalChallenge: null,
+      completedLearningIds: [],
       tierUpCelebration: null,
       tierProgressEpoch: TIER_PROGRESS_EPOCH,
 
@@ -418,6 +423,11 @@ export const useStore = create<AppState>()(
           lastWeeklyInsightAt: insight.generatedAt,
         });
       },
+      markLearningComplete: (skillId) =>
+        set((s) => {
+          if (s.completedLearningIds.includes(skillId)) return s;
+          return { completedLearningIds: [...s.completedLearningIds, skillId] };
+        }),
       dismissNudge: () => set({ lightBotHasNudge: false }),
       dismissEasterEgg: () => set({ showEasterEgg: false }),
       addBonusPoints: (points) =>
@@ -504,6 +514,7 @@ export const useStore = create<AppState>()(
               language: s.language,
               joinedGroupId: null,
               customGroups: [],
+              completedLearningIds: [],
             },
           },
           user: freshUser,
@@ -518,6 +529,7 @@ export const useStore = create<AppState>()(
           weeklyInsight: null,
           lastWeeklyInsightAt: null,
           personalChallenge: null,
+          completedLearningIds: [],
           tierUpCelebration: null,
         });
       },
@@ -537,6 +549,7 @@ export const useStore = create<AppState>()(
           customGroups: account.customGroups ?? [],
           personalChallenge: null,
           dailyTip: null,
+          completedLearningIds: account.completedLearningIds ?? [],
           tierUpCelebration: null,
         });
         return true;
@@ -559,6 +572,7 @@ export const useStore = create<AppState>()(
               language: s.language,
               joinedGroupId: s.joinedGroupId,
               customGroups: s.customGroups,
+              completedLearningIds: s.completedLearningIds,
             },
           },
         });
@@ -733,6 +747,11 @@ export const useStore = create<AppState>()(
           user: nextUser,
           challenges: nextChallenges,
           personalChallenge: nextPersonal,
+          completedLearningIds: Array.isArray(
+            (p as { completedLearningIds?: string[] }).completedLearningIds
+          )
+            ? (p as { completedLearningIds: string[] }).completedLearningIds
+            : current.completedLearningIds ?? [],
           tierUpCelebration: needsTierWipe ? null : current.tierUpCelebration,
           tierProgressEpoch: TIER_PROGRESS_EPOCH,
           accounts: nextAccounts,
@@ -756,6 +775,7 @@ export const useStore = create<AppState>()(
         weeklyInsight: state.weeklyInsight,
         lastWeeklyInsightAt: state.lastWeeklyInsightAt,
         personalChallenge: state.personalChallenge,
+        completedLearningIds: state.completedLearningIds,
         tierProgressEpoch: state.tierProgressEpoch,
       }),
     }
