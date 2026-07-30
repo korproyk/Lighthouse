@@ -118,21 +118,21 @@ export function generateDailyTip(input: {
   const weakest = parts[0].key;
 
   if (input.score >= 80) {
-    return 'Your balance looks solid today. Keep one small offline ritual tonight so the streak stays easy.';
+    return 'Your balance looks solid today.\nKeep one small offline ritual tonight.';
   }
 
   switch (weakest) {
     case 'sleep':
       return input.sleep < 6
-        ? 'Sleep is dragging your score. Try lights-down 20 minutes earlier tonight — even one night helps.'
-        : 'You are close on sleep. Protect a calm wind-down and skip late scrolling if you can.';
+        ? 'Sleep needs a little care tonight.\nTry lights-down 20 minutes earlier.'
+        : 'You are close on sleep.\nProtect a calm wind-down and skip late scrolling.';
     case 'screen':
-      return 'Screen time is the heavy weight today. Pick one app to close after dinner and leave it closed.';
+      return 'Screen time is the heavy weight today.\nClose one app after dinner and leave it closed.';
     case 'social':
-      return 'Social battery looks low. Give yourself one quiet block with no plans — rest counts as progress.';
+      return 'Social battery looks low.\nGive yourself one quiet block with no plans.';
     case 'mood':
     default:
-      return 'Mood is asking for care. A short walk or a message to someone safe can shift the evening.';
+      return 'Mood is asking for care.\nTake a short walk or message someone you trust.';
   }
 }
 

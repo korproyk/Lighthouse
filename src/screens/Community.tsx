@@ -289,10 +289,30 @@ const alertLevels: {
   min: number;
 }[] = [
   { key: 'normal', label: 'Normal', shortLabel: 'Normal', color: '#22C55E', emoji: '🟢', min: 0 },
-  { key: 'slight', label: 'Slight Increase', shortLabel: 'Slight', color: '#EAB308', emoji: '🟡', min: 0.5 },
+  { key: 'slight', label: 'Slight Increase', shortLabel: 'Slight Increase', color: '#EAB308', emoji: '🟡', min: 0.5 },
   { key: 'watch', label: 'Watch', shortLabel: 'Watch', color: '#F97316', emoji: '🟠', min: 0.65 },
-  { key: 'warning', label: 'Early Warning', shortLabel: 'Warning', color: '#EF4444', emoji: '🔴', min: 0.8 },
+  { key: 'warning', label: 'Warning', shortLabel: 'Warning', color: '#EF4444', emoji: '🔴', min: 0.8 },
 ];
+
+/**
+ * Sample/demo totals for Community Summary chart + tiles (scale 0–600).
+ * Separate datasets per domain tab — does not drive live check-in aggregation.
+ */
+const SAMPLE_COMMUNITY_SUMMARY_SCALE = 600;
+const SAMPLE_COMMUNITY_SUMMARY: Record<HealthDomain, Record<AlertLevel, number>> = {
+  physical: {
+    normal: 520,
+    slight: 54,
+    watch: 24,
+    warning: 2,
+  },
+  digital: {
+    normal: 145,
+    slight: 235,
+    watch: 190,
+    warning: 30,
+  },
+};
 
 function alertLevelFromIntensity(intensity: number): AlertLevel {
   if (intensity >= 0.8) return 'warning';
@@ -351,18 +371,105 @@ function compactNumber(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
-function makePinIcon(color: string, glyph: string): L.DivIcon {
+function samplePinBlurb(level: AlertLevel, domain: HealthDomain): string {
+  if (domain === 'digital') {
+    switch (level) {
+      case 'normal':
+        return 'No unusual digital habit pattern detected.';
+      case 'slight':
+        return 'A small increase in screen fatigue and sleep loss was observed.';
+      case 'watch':
+        return 'Higher levels of doomscrolling and screen fatigue were reported.';
+      case 'warning':
+        return 'A strong increase in digital habit concerns was detected.';
+    }
+  }
+  switch (level) {
+    case 'normal':
+      return 'No unusual increase detected.';
+    case 'slight':
+      return 'A small increase has been observed.';
+    case 'watch':
+      return 'Patterns are elevated — worth a closer look.';
+    case 'warning':
+      return 'A sharper rise has been observed in this area.';
+  }
+}
+
+function areaNameFromCity(city: string): string {
+  return city.split(',')[0]?.trim() || city;
+}
+
+function normalizeNeighborhoodQuery(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/-gu\b/g, '')
+    .replace(/[^a-z0-9가-힣]/g, '');
+}
+
+function alertSeverity(level: AlertLevel): number {
+  switch (level) {
+    case 'warning':
+      return 3;
+    case 'watch':
+      return 2;
+    case 'slight':
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+type NeighborhoodSuggestion = {
+  name: string;
+  lat: number;
+  lng: number;
+  pinId: string;
+  alert: AlertLevel;
+};
+
+/** Pin scale by alert — Normal quieter, Warning strongest. */
+function pinSizeForAlert(level: AlertLevel): { w: number; h: number } {
+  switch (level) {
+    case 'normal':
+      return { w: 24, h: 32 };
+    case 'slight':
+      return { w: 28, h: 37 };
+    case 'watch':
+      return { w: 32, h: 42 };
+    case 'warning':
+      return { w: 34, h: 45 };
+  }
+}
+
+function makePinIcon(
+  color: string,
+  glyph: string,
+  level: AlertLevel = 'slight',
+  emphasized = false,
+): L.DivIcon {
+  const base = pinSizeForAlert(level);
+  const scale = emphasized ? 1.22 : 1;
+  const w = Math.round(base.w * scale);
+  const h = Math.round(base.h * scale);
+  const stroke = emphasized
+    ? '3'
+    : level === 'normal'
+      ? '2'
+      : level === 'warning'
+        ? '2.6'
+        : '2.3';
   return L.divIcon({
-    className: 'map-pin',
+    className: `map-pin${emphasized ? ' map-pin-focus' : ''}`,
     html:
-      '<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">' +
-      `<path d="M15 1.5C7.8 1.5 2 7.3 2 14.5c0 8.9 11.4 20.4 12.3 21.3.4.4 1 .4 1.4 0C16.6 34.9 28 23.4 28 14.5 28 7.3 22.2 1.5 15 1.5z" fill="${color}" stroke="#FFFFFF" stroke-width="2.4"/>` +
+      `<svg width="${w}" height="${h}" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">` +
+      `<path d="M15 1.5C7.8 1.5 2 7.3 2 14.5c0 8.9 11.4 20.4 12.3 21.3.4.4 1 .4 1.4 0C16.6 34.9 28 23.4 28 14.5 28 7.3 22.2 1.5 15 1.5z" fill="${color}" stroke="#FFFFFF" stroke-width="${stroke}"/>` +
       '<g transform="translate(6.6 6.1) scale(0.7)" fill="none" stroke="#FFFFFF" stroke-width="2.2" ' +
       `stroke-linecap="round" stroke-linejoin="round">${glyph}</g>` +
       '</svg>',
-    iconSize: [30, 40],
-    iconAnchor: [15, 39],
-    popupAnchor: [0, -34],
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h - 1],
+    popupAnchor: [0, -(h - 6)],
   });
 }
 
@@ -374,10 +481,14 @@ function MapView() {
   const [domainFilter, setDomainFilter] = useState<HealthDomain>('physical');
   const [alertFilter, setAlertFilter] = useState<AlertFilterKey>('all');
   const [query, setQuery] = useState('');
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [focusedPinId, setFocusedPinId] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(0);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  const markersByIdRef = useRef<Map<string, L.Marker>>(new Map());
+  const searchWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -419,15 +530,9 @@ function MapView() {
         live: true,
       };
     });
-    return [...baseline, ...live].filter(
-      (c) =>
-        withinKm(c.lat, c.lng, radiusKm) &&
-        (!search ||
-          c.city.toLowerCase().includes(search) ||
-          c.symptom.toLowerCase().includes(search) ||
-          alertMeta(c.alert).label.toLowerCase().includes(search)),
-    );
-  }, [reports, radiusKm, search]);
+    // Radius only — neighborhood search uses suggestions, not pin filtering.
+    return [...baseline, ...live].filter((c) => withinKm(c.lat, c.lng, radiusKm));
+  }, [reports, radiusKm]);
 
   const visibleCheckIns = useMemo(
     () =>
@@ -439,16 +544,88 @@ function MapView() {
     [domainFilter, alertFilter, checkIns],
   );
 
+  /** Unique sample neighborhoods for the active Physical / Digital Habits tab. */
+  const neighborhoodOptions = useMemo(() => {
+    const byName = new Map<string, NeighborhoodSuggestion>();
+    for (const c of checkIns) {
+      if (c.live) continue;
+      if (domainOf(c.symptom) !== domainFilter) continue;
+      const name = areaNameFromCity(c.city);
+      const key = name.toLowerCase();
+      const prev = byName.get(key);
+      if (!prev || alertSeverity(c.alert) > alertSeverity(prev.alert)) {
+        byName.set(key, {
+          name,
+          lat: c.lat,
+          lng: c.lng,
+          pinId: c.id,
+          alert: c.alert,
+        });
+      }
+    }
+    return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [checkIns, domainFilter]);
+
+  const neighborhoodSuggestions = useMemo(() => {
+    if (!search) return [];
+    const qNorm = normalizeNeighborhoodQuery(search);
+    return neighborhoodOptions.filter((n) => {
+      const nameNorm = normalizeNeighborhoodQuery(n.name);
+      return nameNorm.includes(qNorm) || n.name.toLowerCase().includes(search);
+    });
+  }, [search, neighborhoodOptions]);
+
+  useEffect(() => {
+    setFocusedPinId(null);
+  }, [domainFilter]);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (!searchWrapRef.current?.contains(event.target as Node)) {
+        setSuggestionsOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, []);
+
+  const selectNeighborhood = (neighborhood: NeighborhoodSuggestion) => {
+    setQuery(neighborhood.name);
+    setSuggestionsOpen(false);
+    setFocusedPinId(neighborhood.pinId);
+    const map = mapRef.current;
+    if (!map) return;
+
+    const openFocusedPopup = () => {
+      const marker = markersByIdRef.current.get(neighborhood.pinId);
+      if (marker) {
+        marker.openPopup();
+        return true;
+      }
+      return false;
+    };
+
+    map.once('moveend', () => {
+      if (!openFocusedPopup()) {
+        window.setTimeout(openFocusedPopup, 50);
+      }
+    });
+    map.flyTo([neighborhood.lat, neighborhood.lng], 14, { duration: 0.75 });
+  };
+
+  // Demo sample for Community Summary only (0–600) — switches with Physical / Digital Habits.
+  const summarySource = SAMPLE_COMMUNITY_SUMMARY[domainFilter];
   const summaryTiles = alertLevels.map((level) => {
-    const rows = checkIns.filter((c) => c.alert === level.key);
+    const value = summarySource[level.key];
     return {
       key: level.key as AlertFilterKey,
       label: level.shortLabel,
-      value: compactNumber(rows.reduce((sum, c) => sum + c.count, 0)),
+      value,
       color: level.color,
       emoji: level.emoji,
     };
   });
+  const summaryTotal = SAMPLE_COMMUNITY_SUMMARY_SCALE;
 
   // Init map once
   useEffect(() => {
@@ -495,30 +672,52 @@ function MapView() {
   useEffect(() => {
     if (!layerRef.current) return;
     layerRef.current.clearLayers();
+    markersByIdRef.current.clear();
 
     visibleCheckIns.forEach((c) => {
       const meta = alertMeta(c.alert);
-      const marker = L.marker([c.lat, c.lng], { icon: makePinIcon(meta.color, alertPinGlyph) });
+      const emphasized = focusedPinId === c.id;
+      const marker = L.marker([c.lat, c.lng], {
+        icon: makePinIcon(meta.color, alertPinGlyph, c.alert, emphasized),
+        zIndexOffset: emphasized
+          ? 600
+          : c.alert === 'warning'
+            ? 400
+            : c.alert === 'watch'
+              ? 300
+              : c.alert === 'slight'
+                ? 200
+                : 100,
+      });
 
+      const area = areaNameFromCity(c.city);
       const when = c.created_at
         ? new Date(c.created_at).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-        : 'Aggregate';
-      const suffix = c.live
-        ? `<div style="font-size:10px;opacity:.7;margin-top:4px">Live check-in &middot; ${when}</div>` +
+        : null;
+
+      const body = c.live
+        ? `<div style="font-size:11px;margin-top:6px;opacity:.8">Live check-in · ${when ?? ''}</div>` +
           (c.note ? `<div style="font-size:11px;margin-top:4px">${escapeHtml(c.note)}</div>` : '')
-        : `<div style="font-size:11px;margin-top:4px">${c.count} check-ins this week</div>`;
+        : `<div style="font-size:11px;margin-top:6px;line-height:1.35">` +
+          `<div><span style="opacity:.7">Anonymous check-ins:</span> <strong>${c.count}</strong></div>` +
+          `<div style="margin-top:4px;opacity:.85">${escapeHtml(samplePinBlurb(c.alert, domainFilter))}</div>` +
+          `</div>`;
 
       marker.bindPopup(
-        `<div style="font-family:'Plus Jakarta Sans',sans-serif">` +
-          `<div style="font-weight:700;color:${meta.color};font-size:12px;text-transform:uppercase;letter-spacing:.08em">${meta.emoji} ${meta.label}</div>` +
-          `<div style="font-weight:700;font-size:14px;margin-top:2px">${escapeHtml(c.city)}</div>` +
-          `<div style="font-size:11px;margin-top:4px;opacity:.8">${escapeHtml(c.symptom)}</div>` +
-          suffix +
+        `<div style="font-family:'Plus Jakarta Sans',sans-serif;min-width:160px;max-width:220px">` +
+          `<div style="font-weight:700;color:${meta.color};font-size:11px;text-transform:uppercase;letter-spacing:.08em">${meta.emoji} Status: ${escapeHtml(meta.label)}</div>` +
+          `<div style="font-weight:700;font-size:14px;margin-top:4px">Area: ${escapeHtml(area)}</div>` +
+          body +
           `</div>`,
       );
       marker.addTo(layerRef.current!);
+      markersByIdRef.current.set(c.id, marker);
     });
-  }, [visibleCheckIns]);
+
+    if (focusedPinId) {
+      markersByIdRef.current.get(focusedPinId)?.openPopup();
+    }
+  }, [visibleCheckIns, domainFilter, focusedPinId]);
 
   const handleSubmit = async (payload: { symptom: string; note: string; locationName: string; lat: number; lng: number }) => {
     const { data, error } = await api.healthReports.insert({
@@ -566,15 +765,39 @@ function MapView() {
       </div>
 
       {/* Search + filters */}
-      <div className="px-6 mb-3">
+      <div className="px-6 mb-3 relative z-20" ref={searchWrapRef}>
         <div className="flex items-center gap-2 pl-3.5 pr-1.5 rounded-capsule glass focus-within:ring-2 focus-within:ring-lighthouse-500/40">
           <Search size={15} className="text-ink-300 shrink-0" strokeWidth={2.5} />
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSuggestionsOpen(true);
+            }}
+            onFocus={() => {
+              if (query.trim()) setSuggestionsOpen(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                setSuggestionsOpen(false);
+                return;
+              }
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (neighborhoodSuggestions[0]) {
+                  selectNeighborhood(neighborhoodSuggestions[0]);
+                }
+              }
+            }}
             placeholder={'Search neighborhoods\u2026'}
             className="flex-1 min-w-0 bg-transparent py-3 text-caption text-ink-900 dark:text-ink-100 placeholder:text-ink-300 focus:outline-none"
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={suggestionsOpen && query.trim().length > 0}
+            aria-controls="neighborhood-suggestions"
+            aria-autocomplete="list"
           />
           <span className="w-px h-5 bg-ink-900/10 dark:bg-white/10 shrink-0" />
           <motion.button
@@ -589,6 +812,49 @@ function MapView() {
             )}
           </motion.button>
         </div>
+
+        {suggestionsOpen && query.trim().length > 0 && (
+          <div
+            id="neighborhood-suggestions"
+            role="listbox"
+            className="absolute left-0 right-0 top-[calc(100%-2px)] mt-1.5 rounded-card glass-strong shadow-medium overflow-hidden max-h-52 overflow-y-auto z-30"
+          >
+            {neighborhoodSuggestions.length === 0 ? (
+              <p className="px-3.5 py-3 text-caption text-ink-600 dark:text-ink-300">
+                No neighborhoods found.
+              </p>
+            ) : (
+              neighborhoodSuggestions.map((neighborhood) => {
+                const meta = alertMeta(neighborhood.alert);
+                return (
+                  <button
+                    key={neighborhood.pinId}
+                    type="button"
+                    role="option"
+                    className="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] focus-ring"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectNeighborhood(neighborhood)}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ background: meta.color }}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-caption font-semibold text-ink-900 dark:text-ink-100 truncate">
+                        {neighborhood.name}
+                      </span>
+                      <span className="block text-micro font-normal tracking-normal text-ink-600 dark:text-ink-300">
+                        {meta.label}
+                      </span>
+                    </span>
+                    <MapPin size={14} className="text-ink-300 shrink-0" strokeWidth={2.4} />
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
 
       {/* Alert colour key */}
@@ -667,13 +933,36 @@ function MapView() {
           </span>
         </div>
 
+        {/* Sample stacked chart — scale 0–600; proportions match tile counts */}
+        <div
+          className="relative mt-3 h-2.5 rounded-full overflow-hidden flex bg-black/[0.06] dark:bg-white/10"
+          role="img"
+          aria-label={`Community summary chart from 0 to ${summaryTotal}`}
+        >
+          {summaryTiles.map((tile) => {
+            const pct = (tile.value / summaryTotal) * 100;
+            return (
+              <div
+                key={tile.key}
+                title={`${tile.label}: ${tile.value}`}
+                className="h-full"
+                style={{
+                  width: `${pct}%`,
+                  minWidth: tile.value > 0 ? 2 : 0,
+                  background: tile.color,
+                }}
+              />
+            );
+          })}
+        </div>
+
         <div className="relative mt-3 grid grid-cols-4 gap-1.5">
           {summaryTiles.map((tile) => {
             const active = alertFilter === tile.key;
             return (
               <motion.button
                 key={tile.key}
-                className={`px-1 py-2 rounded-card text-center ${active ? 'glass-tint-warm' : 'glass'}`}
+                className={`px-1 py-2 rounded-card text-center min-w-0 ${active ? 'glass-tint-warm' : 'glass'}`}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => setAlertFilter(active ? 'all' : tile.key)}
               >
@@ -683,10 +972,10 @@ function MapView() {
                 >
                   {tile.emoji}
                 </span>
-                <p className="mt-1.5 font-display font-bold text-body text-ink-900 dark:text-ink-100 leading-none">
+                <p className="mt-1.5 font-display font-bold text-body text-ink-900 dark:text-ink-100 leading-none tabular-nums">
                   {tile.value}
                 </p>
-                <p className="mt-1 text-[9px] font-bold text-ink-600 dark:text-ink-300 leading-tight">
+                <p className="mt-1 text-[9px] font-bold text-ink-600 dark:text-ink-300 leading-tight break-words">
                   {tile.label}
                 </p>
               </motion.button>

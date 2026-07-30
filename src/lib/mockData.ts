@@ -68,9 +68,11 @@ export interface HealthCluster {
 
 const today = new Date();
 function daysAgo(n: number): string {
-  const d = new Date(today);
-  d.setDate(d.getDate() - n);
-  return d.toISOString().split('T')[0];
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - n);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export type { TierId } from './tiers';
@@ -298,24 +300,65 @@ export const badges: Badge[] = [
   { id: 'b12', name: 'Month Strong', icon: 'trophy', gradient: 'from-mint-500 to-ocean-700', earned: false, description: '30-day check-in streak' },
 ];
 
+/**
+ * Sample/demo map clusters for Community > Map (Seoul viewport at zoom ~12).
+ * Intensities map to alert levels: normal <0.5, slight <0.65, watch <0.8, warning ≥0.8.
+ * Physical: ~11 Normal, ~5 Slight, 2 Watch, 2 Warning.
+ * Digital Habits: ~4 Normal, ~8 Slight, ~7 Watch, ~2 Warning (yellow/orange dominate).
+ * Does not drive Community Summary totals or live alert detection.
+ */
 export const healthClusters: HealthCluster[] = [
-  { id: 'h1', lat: 37.5665, lng: 126.9780, city: 'Jung-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.9, count: 203 },
-  { id: 'h2', lat: 37.5172, lng: 127.0473, city: 'Gangnam-gu, Seoul', symptom: 'FOMO', intensity: 0.72, count: 156 },
-  { id: 'h3', lat: 37.5443, lng: 127.0557, city: 'Seongdong-gu, Seoul', symptom: 'Sleep Loss', intensity: 0.58, count: 98 },
-  { id: 'h4', lat: 37.5384, lng: 126.9654, city: 'Yongsan-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.78, count: 134 },
-  { id: 'h5', lat: 37.4979, lng: 127.0276, city: 'Seocho-gu, Seoul', symptom: 'FOMO', intensity: 0.42, count: 87 },
-  { id: 'h6', lat: 37.5558, lng: 126.9369, city: 'Mapo-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.55, count: 112 },
-  { id: 'h7', lat: 37.4563, lng: 126.7052, city: 'Incheon', symptom: 'Sleep Loss', intensity: 0.85, count: 172 },
-  { id: 'h8', lat: 37.2636, lng: 127.0286, city: 'Suwon', symptom: 'Doomscrolling', intensity: 0.35, count: 76 },
-  { id: 'h9', lat: 35.1796, lng: 129.0756, city: 'Busan', symptom: 'Screen Fatigue', intensity: 0.68, count: 143 },
-  { id: 'h10', lat: 35.8714, lng: 128.6014, city: 'Daegu', symptom: 'FOMO', intensity: 0.48, count: 62 },
-  { id: 'h11', lat: 37.5700, lng: 126.9910, city: 'Jongno-gu, Seoul', symptom: 'Headache', intensity: 0.84, count: 168 },
-  { id: 'h12', lat: 37.5512, lng: 126.9882, city: 'Yongsan-gu, Seoul', symptom: 'Fatigue', intensity: 0.91, count: 214 },
-  { id: 'h13', lat: 37.5310, lng: 127.0665, city: 'Gwangjin-gu, Seoul', symptom: 'Sore Throat', intensity: 0.71, count: 121 },
-  { id: 'h14', lat: 37.6542, lng: 127.0568, city: 'Nowon-gu, Seoul', symptom: 'Cough', intensity: 0.63, count: 104 },
-  { id: 'h15', lat: 35.1595, lng: 126.8526, city: 'Gwangju', symptom: 'Fever', intensity: 0.77, count: 139 },
-  { id: 'h16', lat: 37.5660, lng: 127.0090, city: 'Seongbuk-gu, Seoul', symptom: 'Stomach Pain', intensity: 0.66, count: 95 },
-  { id: 'h17', lat: 37.4840, lng: 126.9010, city: 'Guro-gu, Seoul', symptom: 'Diarrhea', intensity: 0.54, count: 81 },
+  // —— Normal (green) —— physical
+  { id: 'h-n1', lat: 37.5668, lng: 126.9784, city: 'Jung-gu, Seoul', symptom: 'Headache', intensity: 0.28, count: 42 },
+  { id: 'h-n2', lat: 37.5552, lng: 126.9362, city: 'Mapo-gu, Seoul', symptom: 'Fatigue', intensity: 0.32, count: 38 },
+  { id: 'h-n3', lat: 37.5792, lng: 126.9368, city: 'Seodaemun-gu, Seoul', symptom: 'Cough', intensity: 0.24, count: 29 },
+  { id: 'h-n4', lat: 37.5488, lng: 127.0405, city: 'Seongdong-gu, Seoul', symptom: 'Sore Throat', intensity: 0.36, count: 33 },
+  { id: 'h-n5', lat: 37.5215, lng: 126.9248, city: 'Yeongdeungpo-gu, Seoul', symptom: 'Fever', intensity: 0.22, count: 21 },
+  { id: 'h-n6', lat: 37.5895, lng: 127.0168, city: 'Seongbuk-gu, Seoul', symptom: 'Stomach Pain', intensity: 0.40, count: 27 },
+  { id: 'h-n7', lat: 37.5138, lng: 126.9425, city: 'Dongjak-gu, Seoul', symptom: 'Diarrhea', intensity: 0.30, count: 19 },
+  { id: 'h-n8', lat: 37.6018, lng: 126.9555, city: 'Eunpyeong-gu, Seoul', symptom: 'Fatigue', intensity: 0.26, count: 24 },
+  { id: 'h-n9', lat: 37.5365, lng: 127.0842, city: 'Gwangjin-gu, Seoul', symptom: 'Headache', intensity: 0.34, count: 31 },
+  { id: 'h-n10', lat: 37.4985, lng: 126.9952, city: 'Seocho-gu, Seoul', symptom: 'Cough', intensity: 0.38, count: 26 },
+  { id: 'h-n11', lat: 37.5625, lng: 127.0358, city: 'Dongdaemun-gu, Seoul', symptom: 'Sore Throat', intensity: 0.29, count: 22 },
+  // —— Slight Increase (yellow) —— physical
+  { id: 'h-s1', lat: 37.5798, lng: 126.9788, city: 'Jongno-gu, Seoul', symptom: 'Fever', intensity: 0.54, count: 18 },
+  { id: 'h-s2', lat: 37.5412, lng: 126.9688, city: 'Yongsan-gu, Seoul', symptom: 'Fatigue', intensity: 0.58, count: 22 },
+  { id: 'h-s3', lat: 37.5088, lng: 127.0625, city: 'Gangnam-gu, Seoul', symptom: 'Headache', intensity: 0.52, count: 16 },
+  { id: 'h-s4', lat: 37.4865, lng: 126.9018, city: 'Guro-gu, Seoul', symptom: 'Cough', intensity: 0.60, count: 20 },
+  { id: 'h-s5', lat: 37.6548, lng: 127.0562, city: 'Nowon-gu, Seoul', symptom: 'Stomach Pain', intensity: 0.56, count: 15 },
+  // —— Watch (orange) —— physical
+  { id: 'h-w1', lat: 37.5285, lng: 127.0288, city: 'Gangnam-gu, Seoul', symptom: 'Fever', intensity: 0.70, count: 48 },
+  { id: 'h-w2', lat: 37.5688, lng: 126.9485, city: 'Mapo-gu, Seoul', symptom: 'Fatigue', intensity: 0.74, count: 36 },
+  // —— Warning (red) —— physical
+  { id: 'h-r1', lat: 37.5525, lng: 126.9885, city: 'Yongsan-gu, Seoul', symptom: 'Fever', intensity: 0.88, count: 62 },
+  { id: 'h-r2', lat: 37.5725, lng: 126.9918, city: 'Jongno-gu, Seoul', symptom: 'Headache', intensity: 0.86, count: 41 },
+
+  // —— Digital Habits sample (~4 Normal, ~8 Slight, ~7 Watch, ~2 Warning) ——
+  // Yellow/orange dominate; locations offset from Physical pins for a distinct map feel.
+  { id: 'h-dn1', lat: 37.5568, lng: 126.9238, city: 'Mapo-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.28, count: 14 },
+  { id: 'h-dn2', lat: 37.5785, lng: 126.9355, city: 'Seodaemun-gu, Seoul', symptom: 'FOMO', intensity: 0.32, count: 11 },
+  { id: 'h-dn3', lat: 37.5195, lng: 126.9788, city: 'Yongsan-gu, Seoul', symptom: 'Sleep Loss', intensity: 0.24, count: 16 },
+  { id: 'h-dn4', lat: 37.5912, lng: 127.0225, city: 'Seongbuk-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.36, count: 12 },
+
+  { id: 'h-ds1', lat: 37.5105, lng: 127.0418, city: 'Gangnam-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.54, count: 31 },
+  { id: 'h-ds2', lat: 37.5815, lng: 126.9425, city: 'Seodaemun-gu, Seoul', symptom: 'Sleep Loss', intensity: 0.58, count: 28 },
+  { id: 'h-ds3', lat: 37.5428, lng: 127.0685, city: 'Gwangjin-gu, Seoul', symptom: 'FOMO', intensity: 0.52, count: 25 },
+  { id: 'h-ds4', lat: 37.4935, lng: 126.9085, city: 'Guro-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.60, count: 33 },
+  { id: 'h-ds5', lat: 37.5648, lng: 126.9845, city: 'Jung-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.55, count: 29 },
+  { id: 'h-ds6', lat: 37.5325, lng: 126.9585, city: 'Yongsan-gu, Seoul', symptom: 'Sleep Loss', intensity: 0.57, count: 22 },
+  { id: 'h-ds7', lat: 37.5055, lng: 126.9535, city: 'Dongjak-gu, Seoul', symptom: 'FOMO', intensity: 0.53, count: 27 },
+  { id: 'h-ds8', lat: 37.5485, lng: 127.0488, city: 'Seongdong-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.59, count: 30 },
+
+  { id: 'h-dw1', lat: 37.5245, lng: 126.9688, city: 'Yongsan-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.70, count: 27 },
+  { id: 'h-dw2', lat: 37.5025, lng: 127.0325, city: 'Gangnam-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.74, count: 34 },
+  { id: 'h-dw3', lat: 37.5585, lng: 126.9455, city: 'Mapo-gu, Seoul', symptom: 'FOMO', intensity: 0.68, count: 24 },
+  { id: 'h-dw4', lat: 37.5755, lng: 126.9885, city: 'Jongno-gu, Seoul', symptom: 'Sleep Loss', intensity: 0.72, count: 29 },
+  { id: 'h-dw5', lat: 37.4885, lng: 126.9825, city: 'Seocho-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.76, count: 31 },
+  { id: 'h-dw6', lat: 37.5385, lng: 127.0885, city: 'Gwangjin-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.69, count: 26 },
+  { id: 'h-dw7', lat: 37.5685, lng: 127.0285, city: 'Dongdaemun-gu, Seoul', symptom: 'FOMO', intensity: 0.73, count: 23 },
+
+  { id: 'h-dr1', lat: 37.5708, lng: 126.9765, city: 'Jongno-gu, Seoul', symptom: 'Doomscrolling', intensity: 0.88, count: 9 },
+  { id: 'h-dr2', lat: 37.5155, lng: 127.0185, city: 'Gangnam-gu, Seoul', symptom: 'Screen Fatigue', intensity: 0.91, count: 12 },
 ];
 
 // Places that help you put the phone down: quiet screen-free rooms, outdoor

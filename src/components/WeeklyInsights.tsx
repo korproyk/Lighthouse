@@ -10,7 +10,7 @@ import {
 } from '../lib/lifeBalance';
 import type { CheckIn } from '../lib/mockData';
 
-const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
+import { WEEKDAY_LABELS } from '../lib/dates';
 
 export type WeeklyHowCopy = {
   validDaysLabel: string;

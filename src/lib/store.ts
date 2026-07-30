@@ -14,6 +14,7 @@ import {
   type WeeklyInsight,
   type PersonalChallenge,
 } from './lifeBalance';
+import { addLocalDays, localDateKey } from './dates';
 
 export interface Account {
   passwordHash: string;
@@ -252,7 +253,7 @@ export const useStore = create<AppState>()(
         const s = get();
         const challenge = s.personalChallenge;
         if (!challenge || challenge.completed || !proofDataUrl) return false;
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateKey();
         if (challenge.date !== today) return false;
         const prevXp = s.user.xp ?? 0;
         const nextXp = prevXp + challenge.points;
@@ -281,7 +282,7 @@ export const useStore = create<AppState>()(
       },
       ensurePersonalChallenge: () => {
         const s = get();
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateKey();
         const todayRow = s.checkIns.find((c) => c.date === today);
         if (!todayRow?.completed) {
           if (s.personalChallenge) set({ personalChallenge: null });
@@ -317,7 +318,7 @@ export const useStore = create<AppState>()(
         }),
       logCheckIn: (data) =>
         set((s) => {
-          const today = new Date().toISOString().split('T')[0];
+          const today = localDateKey();
           return {
             checkIns: s.checkIns.map((c) =>
               c.date === today ? { ...c, ...data, completed: true } : c
@@ -326,7 +327,7 @@ export const useStore = create<AppState>()(
         }),
       logDailyCheckIn: (data) => {
         const s = get();
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateKey();
         const todayRow = s.checkIns.find((c) => c.date === today);
         if (todayRow?.completed) return null;
 
@@ -374,7 +375,7 @@ export const useStore = create<AppState>()(
           : s.weeklyInsight;
 
         const yesterday = withToday.find(
-          (c) => c.date === new Date(Date.now() - 86400000).toISOString().split('T')[0]
+          (c) => c.date === addLocalDays(today, -1)
         );
         const weeklyChange = yesterday?.completed ? score - yesterday.score : s.user.weeklyChange;
 
@@ -474,7 +475,7 @@ export const useStore = create<AppState>()(
           currentStreak: 0,
           weeklyChange: 0,
           totalChallenges: 0,
-          memberSince: new Date().toISOString().split('T')[0],
+          memberSince: localDateKey(),
         };
         const freshCheckIns = s.checkIns.map((c) => ({
           ...c,
@@ -580,7 +581,7 @@ export const useStore = create<AppState>()(
           endedAt,
           hours: adjustedMs / 3_600_000,
         };
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateKey();
         set({
           sleepSession: null,
           lastSleep: record,
@@ -624,7 +625,7 @@ export const useStore = create<AppState>()(
             },
           ],
           totalScore: Math.round(s.user.currentScore),
-          createdAt: new Date().toISOString().split('T')[0],
+          createdAt: localDateKey(),
         };
         set({
           customGroups: [...s.customGroups, group],

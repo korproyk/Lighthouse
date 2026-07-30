@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Flame, Battery, Moon, Smartphone, TrendingUp, Sparkles,
   ArrowRight, ClipboardCheck, FlaskConical, Check, Camera, ImagePlus, X, Target,
-  Lock,
+  Lock, ChevronRight,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
@@ -15,11 +15,15 @@ import WeeklyInsights from '../components/WeeklyInsights';
 import BottomSheet from '../components/BottomSheet';
 import Lumi from '../components/Lumi';
 import { canUnlockWeeklyInsights } from '../lib/lifeBalance';
+import {
+  buildCurrentWeekProgress,
+  localDateKey,
+  WEEKDAY_LABELS,
+} from '../lib/dates';
 import { compressProofPhoto } from '../lib/proofPhoto';
 
 const moodEmojis = ['\u{1F614}', '\u{1F615}', '\u{1F610}', '\u{1F642}', '\u{1F60A}'];
 const moodLabels = ['Sad', 'Meh', 'Okay', 'Good', 'Great'];
-const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -29,7 +33,7 @@ function getGreeting(): string {
 }
 
 function todayKey(): string {
-  return new Date().toISOString().split('T')[0];
+  return localDateKey();
 }
 
 export default function Home() {
@@ -55,6 +59,7 @@ export default function Home() {
     insight: import('../lib/lifeBalance').WeeklyInsight;
   } | null>(null);
   const [balanceTipOpen, setBalanceTipOpen] = useState(false);
+  const [tipDetailOpen, setTipDetailOpen] = useState(false);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
@@ -97,20 +102,12 @@ export default function Home() {
       : 'Check in once a day — mood, sleep, screen, and social battery become your Life Balance score.') ??
     null;
 
-  const streakLen = Math.min(7, Math.max(0, user.currentStreak));
-  const streakScores = checkIns
-    .filter((c) => c.completed)
-    .slice(-streakLen)
-    .map((c) => c.score);
-  const streakSlots = Array.from({ length: 7 }, (_, i) => {
-    if (i < streakScores.length) {
-      return { filled: true, score: streakScores[i] };
-    }
-    return { filled: false, score: 0 };
-  });
-  const maxStreakScore = Math.max(...streakScores, 1);
-  // Mon-first index so labels align with M T W T F S S
-  const todayWeekdayIndex = (new Date().getDay() + 6) % 7;
+  const weekSlots = buildCurrentWeekProgress(checkIns, user.memberSince);
+  const maxWeekScore = Math.max(
+    ...weekSlots.filter((s) => s.state === 'completed').map((s) => s.score),
+    1
+  );
+  const todayWeekdayIndex = weekSlots.findIndex((s) => s.isToday);
 
   const weeklyUnlocked = canUnlockWeeklyInsights(checkIns);
   const isAuthenticated = hasAccount(user.name);
@@ -278,21 +275,53 @@ export default function Home() {
             </div>
           )}
 
-          <div className="mt-2.5">
+          <div className="mt-2.5" role="list" aria-label="Weekly check-in progress">
             <div className="flex items-end gap-1.5 h-8">
-              {streakSlots.map((slot, i) => {
-                const h = slot.filled
-                  ? Math.max(28, (slot.score / maxStreakScore) * 78)
-                  : 16;
+              {weekSlots.map((slot, i) => {
+                if (slot.state === 'before_start') {
+                  return (
+                    <div
+                      key={slot.date}
+                      role="listitem"
+                      className="flex-1 h-full flex items-end justify-center pb-0.5"
+                      title={slot.ariaLabel}
+                      aria-label={slot.ariaLabel}
+                    >
+                      <span
+                        className="text-[11px] leading-none text-ink-300/80 dark:text-ink-600 font-medium"
+                        aria-hidden
+                      >
+                        –
+                      </span>
+                    </div>
+                  );
+                }
+
+                const isTodayPending = slot.isToday && slot.state !== 'completed';
+                const h =
+                  slot.state === 'completed'
+                    ? Math.max(28, (slot.score / maxWeekScore) * 78)
+                    : 16;
+
+                const background =
+                  slot.state === 'completed'
+                    ? 'linear-gradient(180deg, #34D399, #10B981)'
+                    : slot.state === 'missed'
+                      ? 'rgba(14,11,8,0.22)'
+                      : 'rgba(14,11,8,0.08)';
+
                 return (
                   <motion.div
-                    key={i}
-                    className="flex-1 rounded-full"
-                    style={{
-                      background: slot.filled
-                        ? 'linear-gradient(180deg, #34D399, #10B981)'
-                        : 'rgba(14,11,8,0.08)',
-                    }}
+                    key={slot.date}
+                    role="listitem"
+                    className={`flex-1 rounded-full ${
+                      isTodayPending
+                        ? 'ring-2 ring-lighthouse-500/80 shadow-[0_0_0_3px_rgba(255,178,122,0.35)]'
+                        : ''
+                    }`}
+                    style={{ background }}
+                    title={slot.ariaLabel}
+                    aria-label={slot.ariaLabel}
                     initial={{ height: 6 }}
                     animate={{ height: `${h}%` }}
                     transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
@@ -303,12 +332,15 @@ export default function Home() {
             <div className="mt-1 flex gap-1.5">
               {WEEKDAY_LABELS.map((label, i) => (
                 <span
-                  key={`${label}-${i}`}
+                  key={`${weekSlots[i]?.date ?? label}-${i}`}
                   className={`flex-1 text-center text-micro font-normal tracking-normal leading-none ${
                     i === todayWeekdayIndex
                       ? 'text-lighthouse-500'
-                      : 'text-ink-600 dark:text-ink-300'
+                      : weekSlots[i]?.state === 'before_start'
+                        ? 'text-ink-300 dark:text-ink-600'
+                        : 'text-ink-600 dark:text-ink-300'
                   }`}
+                  aria-hidden
                 >
                   {label}
                 </span>
@@ -319,13 +351,17 @@ export default function Home() {
       </div>
 
       {tip && (
-        <motion.div
-          className="relative mt-4 p-3.5 rounded-card bg-mint-500/10 border border-mint-500/20"
+        <motion.button
+          type="button"
+          className="relative mt-2.5 w-full text-left px-3.5 py-2.5 rounded-card bg-mint-500/10 border border-mint-500/20 focus-ring transition-colors hover:bg-mint-500/15 active:bg-mint-500/20"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setTipDetailOpen(true)}
+          aria-label="Open full tip"
         >
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-1.5 mb-0.5">
             <img
               src="/images/lumi.png"
               alt=""
@@ -335,14 +371,20 @@ export default function Home() {
             <span className="text-micro uppercase tracking-[0.14em] font-bold text-mint-700 dark:text-mint-300">
               Tip
             </span>
+            <ChevronRight
+              size={14}
+              className="ml-auto text-mint-700/70 dark:text-mint-300/70 shrink-0"
+              strokeWidth={2.5}
+              aria-hidden
+            />
           </div>
-          <p className="text-caption text-ink-900 dark:text-ink-100 leading-relaxed font-medium">
+          <p className="text-caption text-ink-900 dark:text-ink-100 leading-snug font-medium whitespace-pre-line line-clamp-2">
             {tip}
           </p>
           {isAuthenticated && !weeklyUnlocked && (
             <>
               <div
-                className="mt-3 mb-2.5 border-t border-ink-100/80 dark:border-white/10"
+                className="mt-2 mb-1.5 border-t border-ink-100/80 dark:border-white/10"
                 aria-hidden
               />
               <div className="flex items-start gap-1 min-w-0">
@@ -352,12 +394,12 @@ export default function Home() {
                   strokeWidth={2}
                 />
                 <span className="text-micro font-normal tracking-normal text-ink-600 dark:text-ink-300 leading-snug">
-                  Weekly Insights unlock after 7 check-ins.
+                  Complete 7 days of check-ins to unlock Weekly AI Insights.
                 </span>
               </div>
             </>
           )}
-        </motion.div>
+        </motion.button>
       )}
     </motion.div>
   );
@@ -368,8 +410,11 @@ export default function Home() {
       <div className="noise-overlay" />
 
       {/* Brand + greeting */}
-      <div className="relative px-6 pt-4" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
-        <div className="flex items-center gap-2 mb-4">
+      <div
+        className="relative px-6 pb-0"
+        style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))' }}
+      >
+        <div className="flex items-center gap-2 mb-2.5">
           <img
             src="/images/logo.png"
             alt=""
@@ -381,10 +426,10 @@ export default function Home() {
           </span>
         </div>
         <div>
-          <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
+          <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-0.5">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>
-          <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
+          <h1 className="font-display font-bold text-[1.5rem] leading-[1.15] text-ink-900 dark:text-ink-100 tracking-tight break-words">
             {getGreeting()},
             <br />
             <span className="text-gradient-ember">{user.name}</span>
@@ -394,7 +439,7 @@ export default function Home() {
 
       {/* Before check-in: CTA. After: Life Balance rises into this space. */}
       {!checkedInToday ? (
-        <div className="px-6 mt-5">
+        <div className="px-6 mt-3.5">
           <motion.button
             type="button"
             className="relative w-full overflow-hidden px-4 py-3.5 rounded-hero hero-glow text-left shadow-medium shine"
@@ -430,14 +475,14 @@ export default function Home() {
         </div>
       ) : null}
 
-      <div className="px-6 mt-5">
+      <div className="px-6 mt-3.5">
         {lifeBalanceCard}
       </div>
 
       {/* Personal challenge — only after today’s check-in */}
       {checkedInToday && todayChallenge && (
-        <div className="px-6 mt-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="px-6 mt-4">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
               <Target size={15} className="text-lighthouse-600" strokeWidth={2.5} />
               <h2 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
@@ -704,6 +749,19 @@ export default function Home() {
           isDemo
         />
       )}
+
+      <BottomSheet
+        isOpen={tipDetailOpen && Boolean(tip)}
+        onClose={() => setTipDetailOpen(false)}
+        title="Tip"
+        snapPoints={[0.42, 0.72]}
+      >
+        {tip && (
+          <p className="text-body text-ink-900 dark:text-ink-100 leading-relaxed font-medium whitespace-pre-line selectable pb-2">
+            {tip}
+          </p>
+        )}
+      </BottomSheet>
 
       <BottomSheet
         isOpen={challengeOpen && Boolean(todayChallenge) && !todayChallenge?.completed}
