@@ -593,12 +593,12 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'lighthouse-storage',
-      // v2 → v3: reset challenge progress + XP so the new tier ladder starts clean.
+      // v3 → v4: RESET ALL TIERS! — wipe challenge XP / tiers / completions again.
       // Life Balance check-ins are left alone.
-      version: 3,
+      version: 4,
       migrate: async (persisted, fromVersion) => {
         const state = (persisted ?? {}) as Partial<AppState>;
-        if (fromVersion >= 3) return state;
+        if (fromVersion >= 4) return state;
 
         const wipeChallengeProgress = <
           T extends {
@@ -637,6 +637,18 @@ export const useStore = create<AppState>()(
           ),
         });
 
+        const personal =
+          state.personalChallenge && !state.personalChallenge.completed
+            ? state.personalChallenge
+            : state.personalChallenge
+              ? {
+                  ...state.personalChallenge,
+                  completed: false,
+                  completedAt: undefined,
+                  proofDataUrl: undefined,
+                }
+              : null;
+
         return {
           ...state,
           user:
@@ -644,6 +656,8 @@ export const useStore = create<AppState>()(
           challenges: resetAllChallengeProgress(
             mergeChallengeCatalog(state.challenges, challenges)
           ),
+          personalChallenge: personal,
+          tierUpCelebration: null,
           accounts: Object.fromEntries(
             Object.entries(state.accounts ?? {}).map(([key, account]) => [
               key,
