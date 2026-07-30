@@ -28,6 +28,8 @@ export interface Account {
 
 export interface SleepSession {
   startedAt: number;
+  /** Locked at bedtime — subtract 20 min on wake for a more accurate result. */
+  minus20: boolean;
 }
 
 export interface SleepRecord {
@@ -89,7 +91,7 @@ interface AppState {
   loginAccount: (nickname: string) => boolean;
   verifyAccountPassword: (nickname: string, passwordHash: string) => boolean;
   syncAccount: (nickname: string) => void;
-  startSleepSession: () => void;
+  startSleepSession: (minus20: boolean) => void;
   stopSleepSession: (adjustMs?: number) => SleepRecord | null;
   cancelSleepSession: () => void;
   joinGroup: (id: string) => boolean;
@@ -435,7 +437,8 @@ export const useStore = create<AppState>()(
       // Only the bedtime stamp is stored, so elapsed time is always derived from
       // the clock. That keeps the count honest while the app is backgrounded,
       // killed, or the phone is locked all night.
-      startSleepSession: () => set({ sleepSession: { startedAt: Date.now() } }),
+      startSleepSession: (minus20) =>
+        set({ sleepSession: { startedAt: Date.now(), minus20: Boolean(minus20) } }),
       cancelSleepSession: () => set({ sleepSession: null }),
       stopSleepSession: (adjustMs = 0) => {
         const s = get();

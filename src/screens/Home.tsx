@@ -2,12 +2,13 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Flame, Battery, Moon, Smartphone, TrendingUp, Sparkles,
-  ArrowRight, ClipboardCheck, FlaskConical,
+  ArrowRight, ClipboardCheck, FlaskConical, Check,
 } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import ScoreRing from '../components/ScoreRing';
 import DailyCheckIn from '../components/DailyCheckIn';
+import CheckInSavedPopup from '../components/CheckInSavedPopup';
 import WeeklyInsights from '../components/WeeklyInsights';
 import { canUnlockWeeklyInsights } from '../lib/lifeBalance';
 
@@ -35,9 +36,12 @@ export default function Home() {
   } = useStore();
 
   const [checkInOpen, setCheckInOpen] = useState(false);
+  const [savedPopupOpen, setSavedPopupOpen] = useState(false);
+  const [savedScore, setSavedScore] = useState<number | undefined>();
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [balanceTipOpen, setBalanceTipOpen] = useState(false);
   const balanceTipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingWeekly = useRef(false);
 
   useEffect(() => {
     ensureWeeklyInsight();
@@ -126,15 +130,15 @@ export default function Home() {
       <div className="px-6 mt-5">
         {checkedInToday ? (
           <div className="flex items-center gap-3 p-3.5 rounded-card glass">
-            <div className="w-10 h-10 rounded-full bg-mint-500/15 flex items-center justify-center">
-              <ClipboardCheck size={18} className="text-mint-600 dark:text-mint-300" strokeWidth={2.5} />
+            <div className="w-10 h-10 rounded-full bg-mint-500 flex items-center justify-center shadow-soft">
+              <Check size={20} className="text-white" strokeWidth={3} />
             </div>
             <div className="min-w-0">
               <p className="font-display font-bold text-body text-ink-900 dark:text-ink-100">
-                Today&apos;s check-in saved
+                Checked in today
               </p>
               <p className="text-caption text-ink-600 dark:text-ink-300">
-                Life Balance updated from mood, sleep, screen & social battery
+                Life Balance is set from today&apos;s check-in
               </p>
             </div>
           </div>
@@ -428,9 +432,22 @@ export default function Home() {
         isOpen={checkInOpen}
         onClose={() => setCheckInOpen(false)}
         onFinished={(out) => {
+          setSavedScore(out.score);
+          setSavedPopupOpen(true);
           if (out.weeklyReady) {
+            pendingWeekly.current = true;
             ensureWeeklyInsight();
-            setTimeout(() => setWeeklyOpen(true), 2400);
+          }
+        }}
+      />
+      <CheckInSavedPopup
+        isOpen={savedPopupOpen}
+        score={savedScore}
+        onClose={() => {
+          setSavedPopupOpen(false);
+          if (pendingWeekly.current) {
+            pendingWeekly.current = false;
+            setWeeklyOpen(true);
           }
         }}
       />
