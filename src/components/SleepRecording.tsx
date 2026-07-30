@@ -31,14 +31,14 @@ function formatStamp(ts: number): string {
   });
 }
 
-/** Split "10:47 PM" so the period can sit smaller beside the time. */
+/** Always 12-hour with Latin AM/PM so the period can sit smaller beside the time. */
 function formatClockParts(ts: number): { time: string; period: string } {
-  const raw = new Date(ts).toLocaleTimeString(undefined, {
+  const raw = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  });
-  const match = raw.match(/^(.+?)\s*([AaPp][Mm])$/);
+  }).format(new Date(ts));
+  const match = raw.match(/^(.+?)\s*(AM|PM)$/i);
   if (match) return { time: match[1], period: match[2].toUpperCase() };
   return { time: raw, period: '' };
 }
@@ -47,23 +47,25 @@ function formatClockParts(ts: number): { time: string; period: string } {
 function ConfirmDots({
   taps,
   activeColor,
+  className = 'mt-1.5',
 }: {
   taps: number;
   activeColor: string;
+  className?: string;
 }) {
   const leftFilled = taps < 1;
   const rightFilled = taps < 2;
   return (
-    <div className="mt-1.5 flex gap-1.5" aria-hidden>
+    <div className={`flex gap-1.5 ${className}`} aria-hidden>
       <span
-        className="w-2 h-2 rounded-full border transition-colors"
+        className="w-2 h-2 rounded-full border transition-colors shrink-0"
         style={{
           background: leftFilled ? activeColor : 'transparent',
           borderColor: activeColor,
         }}
       />
       <span
-        className="w-2 h-2 rounded-full border transition-colors"
+        className="w-2 h-2 rounded-full border transition-colors shrink-0"
         style={{
           background: rightFilled ? activeColor : 'transparent',
           borderColor: activeColor,
@@ -235,36 +237,45 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
 
               {/* Sleep goal card */}
               <motion.div
-                className="relative mt-4 overflow-hidden rounded-hero glass-strong px-4 pt-5 pb-5 text-center"
+                className="relative mt-4 rounded-hero glass-strong px-4 pt-5 pb-5 text-center"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
               >
                 <div
-                  className="absolute -top-16 -right-10 w-40 h-40 rounded-full pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.38), transparent 70%)', filter: 'blur(24px)' }}
-                />
+                  className="absolute inset-0 rounded-hero overflow-hidden pointer-events-none"
+                  aria-hidden
+                >
+                  <div
+                    className="absolute -top-16 -right-10 w-40 h-40 rounded-full"
+                    style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.38), transparent 70%)', filter: 'blur(24px)' }}
+                  />
+                </div>
 
                 <div className="relative z-[1]">
+                  {/* Character only — crop baked-in SLEEP GOAL / 8 hours out of the PNG */}
                   <div className="relative flex w-full items-center justify-center py-1">
-                    {/* Soft warm glow behind the character */}
                     <div
-                      className="absolute left-1/2 top-[40%] h-32 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
+                      className="absolute left-1/2 top-[42%] h-28 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
                       style={{
                         background:
                           'radial-gradient(ellipse at center, rgba(255,178,122,0.5) 0%, rgba(255,122,69,0.2) 42%, transparent 70%)',
                       }}
                       aria-hidden
                     />
-                    {/* multiply makes the white plate vanish into the card surface */}
-                    <img
-                      src="/images/sleeping-fireguy.png?v=4"
-                      alt={`Sleep goal ${SLEEP_GOAL_HOURS} hours`}
-                      width={390}
-                      height={370}
-                      className="relative z-[1] h-auto w-auto max-w-full object-contain object-center pointer-events-none select-none mix-blend-multiply"
-                      style={{ maxWidth: 'min(100%, 195px)' }}
-                      draggable={false}
-                    />
+                    <div
+                      className="relative z-[1] overflow-hidden mx-auto"
+                      style={{ width: 'min(100%, 195px)', height: 118 }}
+                    >
+                      <img
+                        src="/images/sleeping-fireguy.png?v=5"
+                        alt=""
+                        width={390}
+                        height={370}
+                        className="absolute left-0 top-0 w-full h-auto pointer-events-none select-none mix-blend-multiply"
+                        draggable={false}
+                        aria-hidden
+                      />
+                    </div>
                   </div>
 
                   <AnimatePresence mode="wait" initial={false}>
@@ -298,11 +309,26 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                           Timer stays covered until {SLEEP_GOAL_HOURS} hours.
                         </p>
                       </motion.div>
-                    ) : null}
+                    ) : (
+                      <motion.div
+                        key="sleep-goal"
+                        className="mt-1"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                      >
+                        <p className="text-[10px] uppercase tracking-[0.16em] font-bold text-ink-300">
+                          Sleep goal
+                        </p>
+                        <p className="mt-1 font-display font-bold text-[2.15rem] leading-none tracking-tight text-lighthouse-600 dark:text-lighthouse-300">
+                          {SLEEP_GOAL_HOURS} hours
+                        </p>
+                      </motion.div>
+                    )}
                   </AnimatePresence>
 
                   {/* NOW / recommended wake — equal columns, no arrow */}
-                  <div className="mt-3.5 pt-3.5 border-t border-ink-100/80 dark:border-white/10 flex items-start">
+                  <div className="mt-3.5 pt-3.5 pb-1 border-t border-ink-100/80 dark:border-white/10 flex items-start">
                     <div className="flex-1 min-w-0 flex flex-col items-center px-1">
                       <Moon size={15} className="text-[#8B7EF6]" strokeWidth={2.25} aria-hidden />
                       <p className="mt-1 text-[9px] font-bold uppercase tracking-wide text-ink-300 leading-none">
@@ -378,36 +404,31 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                     className={`relative h-full box-border flex ${
                       sleeping
                         ? 'flex-col items-center justify-center px-2.5 py-3'
-                        : 'flex-col items-start justify-center px-3.5 py-3.5'
+                        : 'flex-col items-start px-3.5 py-[7px]'
                     }`}
                   >
-                    <div
-                      className={`rounded-full flex items-center justify-center shrink-0 ${
-                        sleeping
-                          ? 'w-8 h-8 bg-ink-100 dark:bg-night-700'
-                          : 'w-9 h-9 hero-glow shadow-soft'
-                      }`}
-                    >
-                      <Moon
-                        size={sleeping ? 14 : 16}
-                        className={sleeping ? 'text-ink-600 dark:text-ink-300' : 'text-white'}
-                      />
-                    </div>
-
                     {sleeping ? (
-                      <p className="mt-1 text-[10px] font-bold text-center text-ink-600 dark:text-ink-300 leading-tight">
-                        Bedtime
-                      </p>
-                    ) : (
                       <>
-                        <p className="mt-2 font-display font-bold text-[13px] leading-tight text-ink-900 dark:text-ink-100">
+                        <div className="rounded-full flex items-center justify-center shrink-0 w-8 h-8 bg-ink-100 dark:bg-night-700">
+                          <Moon size={14} className="text-ink-600 dark:text-ink-300" />
+                        </div>
+                        <p className="mt-1 text-[10px] font-bold text-center text-ink-600 dark:text-ink-300 leading-tight">
+                          Bedtime
+                        </p>
+                      </>
+                    ) : (
+                      <div className="my-auto flex flex-col items-start min-w-0 w-full">
+                        <div className="rounded-full flex items-center justify-center shrink-0 w-9 h-9 hero-glow shadow-soft">
+                          <Moon size={16} className="text-white" />
+                        </div>
+                        <p className="mt-0.5 font-display font-bold text-[13px] leading-none text-ink-900 dark:text-ink-100">
                           Start Bedtime
                         </p>
-                        <p className="mt-0.5 text-[10px] text-ink-600 dark:text-ink-300 leading-snug">
+                        <p className="mt-0.5 text-[10px] text-ink-600 dark:text-ink-300 leading-none">
                           {bedTap === 1 ? 'Tap again to confirm' : 'Double-tap to confirm'}
                         </p>
-                        <ConfirmDots taps={bedTap} activeColor="#FF7A45" />
-                      </>
+                        <ConfirmDots taps={bedTap} activeColor="#FF7A45" className="mt-0.5" />
+                      </div>
                     )}
                   </div>
                 </motion.button>
