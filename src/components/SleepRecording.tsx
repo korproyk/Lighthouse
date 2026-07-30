@@ -224,13 +224,18 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                 />
 
                 <div className="relative z-[1]">
-                  {/* Art already includes “Sleep goal / 8 hours” — no duplicate text */}
-                  <img
-                    src="/images/sleeping-fireguy.png"
-                    alt={`Sleep goal ${SLEEP_GOAL_HOURS} hours`}
-                    className="mx-auto w-[11.5rem] h-auto object-contain pointer-events-none select-none"
-                    draggable={false}
-                  />
+                  {/* Art already includes “Sleep goal / 8 hours” — keep native sharpness */}
+                  <div className="flex w-full items-center justify-center">
+                    <img
+                      src="/images/sleeping-fireguy.png"
+                      alt={`Sleep goal ${SLEEP_GOAL_HOURS} hours`}
+                      width={390}
+                      height={370}
+                      className="h-auto w-auto max-w-full object-contain object-center pointer-events-none select-none"
+                      style={{ maxWidth: 'min(100%, 195px)' }}
+                      draggable={false}
+                    />
+                  </div>
 
                   <AnimatePresence mode="wait" initial={false}>
                     {goalReached ? (
