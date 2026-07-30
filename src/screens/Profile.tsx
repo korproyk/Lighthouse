@@ -9,9 +9,9 @@ import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import { badges } from '../lib/mockData';
 import { themes, resolveThemeUv, type ThemeId } from '../lib/themes';
-import { tierFromXp, tierProgressPercent, nextTierThreshold } from '../lib/tiers';
+import { tierFromXp, tierProgressPercent, nextTierThreshold, TIER_LADDER } from '../lib/tiers';
 import BottomSheet from '../components/BottomSheet';
-import Lumi from '../components/Lumi';
+import TierUpCelebration from '../components/TierUpCelebration';
 
 const badgeIcons: Record<string, React.ElementType> = {
   sunrise: Sunrise, calendar: Calendar, target: Target, heart: Heart,
@@ -31,6 +31,11 @@ export default function Profile() {
   const tier = tierFromXp(xp);
   const tierProgress = tierProgressPercent(xp);
   const nextAt = nextTierThreshold(xp);
+  const tierIndex = TIER_LADDER.findIndex((t) => t.id === tier.id);
+  const previewCelebration =
+    tierIndex <= 0
+      ? { from: TIER_LADDER[0], to: TIER_LADDER[1] }
+      : { from: TIER_LADDER[tierIndex - 1], to: tier };
   const earnedBadges = badges.filter((b) => b.earned);
   const lockedBadges = badges.filter((b) => !b.earned);
 
@@ -356,45 +361,11 @@ export default function Profile() {
         </AnimatePresence>
       </BottomSheet>
 
-      {/* Tier-up celebration */}
-      <AnimatePresence>
-        {showTierUp && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-night-900/90 flex flex-col items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowTierUp(false)}
-          >
-            <motion.div
-              initial={{ y: 200, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-              className="flex flex-col items-center"
-            >
-              <div className={`w-32 h-32 rounded-full bg-gradient-to-br ${tier.color} flex items-center justify-center shadow-floating`}>
-                <Lumi pose="cheering" size={80} animate={true} />
-              </div>
-              <motion.h2
-                className="mt-6 font-display font-bold text-display-xl text-white text-center"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                You're a {tier.name} now. {'\u2728'}
-              </motion.h2>
-              <motion.p
-                className="mt-2 text-body text-white/60"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-              >
-                Tap to continue
-              </motion.p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Tier-up celebration preview (tap progress bar) */}
+      <TierUpCelebration
+        celebration={showTierUp ? previewCelebration : null}
+        onClose={() => setShowTierUp(false)}
+      />
     </div>
   );
 }

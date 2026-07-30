@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from './lib/store';
 import { setLanguage } from './lib/i18n';
 import CapsuleNavbar from './components/CapsuleNavbar';
+import TierUpCelebration from './components/TierUpCelebration';
 import Splash from './screens/Splash';
 import Onboarding from './screens/Onboarding';
 import Home from './screens/Home';
@@ -12,11 +13,20 @@ import Community from './screens/Community';
 import Profile from './screens/Profile';
 import BottomSheet from './components/BottomSheet';
 import ScoreHistory from './components/ScoreHistory';
+import { TIER_LADDER } from './lib/tiers';
 
 const screens = [Home, Challenges, null, Community, Profile];
 
 export default function App() {
-  const { hasOnboarded, activeTab, darkMode, uvMode, language } = useStore();
+  const {
+    hasOnboarded,
+    activeTab,
+    darkMode,
+    uvMode,
+    language,
+    tierUpCelebration,
+    dismissTierUp,
+  } = useStore();
   const [showSplash, setShowSplash] = useState(true);
   const [lightBotOpen, setLightBotOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
@@ -139,6 +149,20 @@ export default function App() {
       </BottomSheet>
 
       <ScoreHistory isOpen={scoreHistoryOpen} onClose={() => setScoreHistoryOpen(false)} />
+
+      <TierUpCelebration
+        celebration={
+          tierUpCelebration
+            ? {
+                from:
+                  TIER_LADDER.find((t) => t.id === tierUpCelebration.fromId) ?? TIER_LADDER[0],
+                to:
+                  TIER_LADDER.find((t) => t.id === tierUpCelebration.toId) ?? TIER_LADDER[0],
+              }
+            : null
+        }
+        onClose={dismissTierUp}
+      />
 
       {/* Easter egg */}
       <AnimatePresence>

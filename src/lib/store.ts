@@ -4,7 +4,7 @@ import { userProfile, checkIns, challenges, badges, SLEEP_GOAL_HOURS } from './m
 import type { CheckIn, Challenge, Badge, ChallengeGroup } from './mockData';
 import { setLanguage } from './i18n';
 import { refreshChallengeList, resetAllChallengeProgress } from './challengeCycle';
-import { tierFromXp, tierProgressPercent } from './tiers';
+import { tierFromXp, tierProgressPercent, type TierId } from './tiers';
 import {
   computeLifeBalanceScore,
   generateDailyTip,
@@ -40,6 +40,11 @@ export interface SleepRecord {
   hours: number;
 }
 
+export interface TierUpCelebrationState {
+  fromId: TierId;
+  toId: TierId;
+}
+
 interface AppState {
   hasOnboarded: boolean;
   darkMode: boolean;
@@ -63,6 +68,8 @@ interface AppState {
   weeklyInsight: WeeklyInsight | null;
   lastWeeklyInsightAt: string | null;
   personalChallenge: PersonalChallenge | null;
+  /** Ephemeral — shown globally when XP crosses a tier threshold. */
+  tierUpCelebration: TierUpCelebrationState | null;
 
   setOnboarded: () => void;
   toggleDarkMode: () => void;
@@ -72,6 +79,7 @@ interface AppState {
   completeChallenge: (id: string, proofDataUrl?: string) => void;
   completePersonalChallenge: (proofDataUrl: string) => boolean;
   ensurePersonalChallenge: () => void;
+  dismissTierUp: () => void;
   refreshExpiredChallenges: () => void;
   logCheckIn: (data: Partial<CheckIn>) => void;
   logDailyCheckIn: (data: {
@@ -153,6 +161,7 @@ export const useStore = create<AppState>()(
       weeklyInsight: null,
       lastWeeklyInsightAt: null,
       personalChallenge: null,
+      tierUpCelebration: null,
 
       setOnboarded: () => set({ hasOnboarded: true }),
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
@@ -168,7 +177,9 @@ export const useStore = create<AppState>()(
           if (!target || target.completed) return s;
           // Non-sleep challenges need a proof photo.
           if (target.tracker !== 'sleep' && !proofDataUrl) return s;
-          const nextXp = (s.user.xp ?? 0) + target.points;
+          const prevXp = s.user.xp ?? 0;
+          const nextXp = prevXp + target.points;
+          const prevTier = tierFromXp(prevXp);
           const nextTier = tierFromXp(nextXp);
           return {
             challenges: s.challenges.map((c) =>
@@ -189,6 +200,10 @@ export const useStore = create<AppState>()(
               tierProgress: tierProgressPercent(nextXp),
               totalChallenges: s.user.totalChallenges + 1,
             },
+            tierUpCelebration:
+              prevTier.id !== nextTier.id
+                ? { fromId: prevTier.id, toId: nextTier.id }
+                : s.tierUpCelebration,
           };
         }),
       completePersonalChallenge: (proofDataUrl) => {
@@ -197,7 +212,9 @@ export const useStore = create<AppState>()(
         if (!challenge || challenge.completed || !proofDataUrl) return false;
         const today = new Date().toISOString().split('T')[0];
         if (challenge.date !== today) return false;
-        const nextXp = (s.user.xp ?? 0) + challenge.points;
+        const prevXp = s.user.xp ?? 0;
+        const nextXp = prevXp + challenge.points;
+        const prevTier = tierFromXp(prevXp);
         const nextTier = tierFromXp(nextXp);
         set({
           personalChallenge: {
@@ -213,6 +230,10 @@ export const useStore = create<AppState>()(
             tierProgress: tierProgressPercent(nextXp),
             totalChallenges: s.user.totalChallenges + 1,
           },
+          tierUpCelebration:
+            prevTier.id !== nextTier.id
+              ? { fromId: prevTier.id, toId: nextTier.id }
+              : s.tierUpCelebration,
         });
         return true;
       },
@@ -238,6 +259,7 @@ export const useStore = create<AppState>()(
           ),
         });
       },
+      dismissTierUp: () => set({ tierUpCelebration: null }),
       refreshExpiredChallenges: () =>
         set((s) => {
           const next = refreshChallengeList(s.challenges);
@@ -380,6 +402,7 @@ export const useStore = create<AppState>()(
           weeklyInsight: null,
           lastWeeklyInsightAt: null,
           personalChallenge: null,
+          tierUpCelebration: null,
         });
       },
 
@@ -452,6 +475,7 @@ export const useStore = create<AppState>()(
           weeklyInsight: null,
           lastWeeklyInsightAt: null,
           personalChallenge: null,
+          tierUpCelebration: null,
         });
       },
       loginAccount: (nickname) => {
@@ -470,6 +494,7 @@ export const useStore = create<AppState>()(
           customGroups: account.customGroups ?? [],
           personalChallenge: null,
           dailyTip: null,
+          tierUpCelebration: null,
         });
         return true;
       },
