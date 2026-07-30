@@ -310,9 +310,9 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                   transition={{ layout: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
                   onClick={handleBedtimeTap}
                   disabled={sleeping}
-                  className={`relative overflow-hidden rounded-[1.25rem] text-left ${
+                  className={`relative overflow-hidden rounded-hero text-left ${
                     sleeping
-                      ? 'w-[28%] glass opacity-55'
+                      ? 'w-[28%] glass opacity-60'
                       : 'flex-1 glass-tint-warm'
                   }`}
                   whileTap={sleeping ? undefined : { scale: 0.98 }}
@@ -361,19 +361,14 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                   transition={{ layout: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
                   onClick={handleWakeTap}
                   disabled={!sleeping}
-                  className={`relative overflow-hidden rounded-[1.25rem] ${
+                  className={`relative overflow-hidden rounded-hero ${
                     !sleeping
-                      ? 'w-[28%] glass opacity-55 text-center'
-                      : 'flex-1 text-left'
+                      ? 'w-[28%] glass opacity-60 text-center'
+                      : 'flex-1 glass-strong text-left'
                   }`}
                   style={
                     sleeping
-                      ? {
-                          background:
-                            'linear-gradient(135deg, rgba(255,181,71,0.22), rgba(255,255,255,0.88) 55%)',
-                          boxShadow:
-                            'inset 0 0 0 1.5px rgba(255,181,71,0.45), 0 10px 28px rgba(14,11,8,0.06)',
-                        }
+                      ? { boxShadow: 'inset 0 0 0 2px rgba(255,181,71,0.55)' }
                       : undefined
                   }
                   whileTap={sleeping ? { scale: 0.98 } : undefined}
