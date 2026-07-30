@@ -415,12 +415,17 @@ export default function Home() {
         style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))' }}
       >
         <div>
-          <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-0.5">
+          <p
+            className="uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-0.5 font-semibold leading-[1.3]"
+            style={{ fontSize: 'calc(0.6875rem - 2pt)' }}
+          >
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>
-          <h1 className="font-display font-bold text-[1.5rem] leading-[1.15] text-ink-900 dark:text-ink-100 tracking-tight break-words">
-            {getGreeting()},
-            <br />
+          <h1
+            className="font-display font-bold leading-[1.15] text-ink-900 dark:text-ink-100 tracking-tight break-words"
+            style={{ fontSize: 'calc(1.5rem - 2pt)' }}
+          >
+            {getGreeting()},{' '}
             <span className="text-gradient-ember">{user.name}</span>
           </h1>
         </div>
@@ -428,7 +433,7 @@ export default function Home() {
 
       {/* Before check-in: CTA. After: Life Balance rises into this space. */}
       {!checkedInToday ? (
-        <div className="px-6 mt-3.5">
+        <div className="px-6 mt-3">
           <motion.button
             type="button"
             className="relative w-full overflow-hidden px-4 py-3.5 rounded-hero hero-glow text-left shadow-medium shine"
@@ -464,7 +469,7 @@ export default function Home() {
         </div>
       ) : null}
 
-      <div className="px-6 mt-3.5">
+      <div className="px-6 mt-3">
         {lifeBalanceCard}
       </div>
 
