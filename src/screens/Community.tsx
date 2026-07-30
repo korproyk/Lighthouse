@@ -7,9 +7,25 @@ import {
   Search, SlidersHorizontal, Crosshair,
 } from 'lucide-react';
 import { t } from '../lib/i18n';
+import { useStore } from '../lib/store';
 import {
   communityWins, accountabilityPartner, volunteerEvents, healthClusters,
 } from '../lib/mockData';
+import {
+  COUNTRIES,
+  MIN_AGGREGATE_COUNT,
+  areaDisplayFromStoredCity,
+  coordsForStoredCity,
+  displayName,
+  encodeCheckInLocation,
+  filterLocalAreas,
+  filterRegions,
+  localAreaMapLabel,
+  localIsoTimestamp,
+  parseCheckInLocation,
+  type AdminRegion,
+  type LocalArea,
+} from '../lib/locations';
 import { api, type HealthReportRow } from '../lib/supabase';
 import BottomSheet from '../components/BottomSheet';
 import GroupsPanel from '../components/GroupsPanel';
@@ -329,19 +345,6 @@ function alertMeta(level: AlertLevel) {
 const alertPinGlyph =
   '<circle cx="12" cy="12" r="6.5" fill="#FFFFFF" stroke="none"/>';
 
-const seoulNeighborhoods = [
-  { name: 'Jongno-gu, Seoul', lat: 37.5735, lng: 126.9788 },
-  { name: 'Gangnam-gu, Seoul', lat: 37.5172, lng: 127.0473 },
-  { name: 'Mapo-gu, Seoul', lat: 37.5558, lng: 126.9369 },
-  { name: 'Yongsan-gu, Seoul', lat: 37.5384, lng: 126.9654 },
-  { name: 'Seongdong-gu, Seoul', lat: 37.5443, lng: 127.0557 },
-  { name: 'Seocho-gu, Seoul', lat: 37.4979, lng: 127.0276 },
-  { name: 'Songpa-gu, Seoul', lat: 37.5145, lng: 127.1059 },
-  { name: 'Nowon-gu, Seoul', lat: 37.6542, lng: 127.0568 },
-  { name: 'Eunpyeong-gu, Seoul', lat: 37.6026, lng: 126.9291 },
-  { name: 'Dongdaemun-gu, Seoul', lat: 37.5744, lng: 127.0396 },
-];
-
 const radiusOptions = [
   { km: 0, label: 'Anywhere' },
   { km: 2, label: 'Within 2 km' },
@@ -397,7 +400,7 @@ function samplePinBlurb(level: AlertLevel, domain: HealthDomain): string {
 }
 
 function areaNameFromCity(city: string): string {
-  return city.split(',')[0]?.trim() || city;
+  return parseCheckInLocation(city).areaName;
 }
 
 function normalizeNeighborhoodQuery(value: string): string {
@@ -474,6 +477,7 @@ function makePinIcon(
 }
 
 function MapView() {
+  const language = useStore((s) => s.language);
   const [reports, setReports] = useState<HealthReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCheckInSheet, setShowCheckInSheet] = useState(false);
@@ -514,22 +518,57 @@ function MapView() {
       created_at: '',
       live: false,
     }));
-    const live = reports.map((r) => {
-      const intensity = 0.55;
-      return {
-        id: r.id,
-        symptom: r.symptom,
-        city: r.city,
-        lat: r.lat,
-        lng: r.lng,
-        count: 1,
-        intensity,
-        alert: alertLevelFromIntensity(intensity),
-        note: r.note,
-        created_at: r.created_at,
-        live: true,
-      };
-    });
+
+    // Aggregate live reports by local-area ID; hide areas below privacy threshold.
+    type Agg = {
+      id: string;
+      symptom: string;
+      city: string;
+      lat: number;
+      lng: number;
+      count: number;
+      intensity: number;
+      note: string;
+      created_at: string;
+    };
+    const byArea = new Map<string, Agg>();
+    for (const r of reports) {
+      const parsed = parseCheckInLocation(r.city);
+      const areaKey = parsed.localAreaId
+        ? `${parsed.countryId}|${parsed.regionId}|${parsed.localAreaId}|${domainOf(r.symptom)}`
+        : `${parsed.areaName}|${domainOf(r.symptom)}`;
+      const coords = coordsForStoredCity(r.city) ?? { lat: r.lat, lng: r.lng };
+      const existing = byArea.get(areaKey);
+      if (existing) {
+        existing.count += 1;
+        if (r.created_at > existing.created_at) {
+          existing.created_at = r.created_at;
+          existing.symptom = r.symptom;
+          existing.note = r.note;
+        }
+      } else {
+        byArea.set(areaKey, {
+          id: `live-${areaKey}`,
+          symptom: r.symptom,
+          city: r.city,
+          lat: coords.lat,
+          lng: coords.lng,
+          count: 1,
+          intensity: 0.55,
+          note: r.note,
+          created_at: r.created_at,
+        });
+      }
+    }
+
+    const live = [...byArea.values()]
+      .filter((a) => a.count >= MIN_AGGREGATE_COUNT)
+      .map((a) => ({
+        ...a,
+        alert: alertLevelFromIntensity(a.intensity),
+        live: true as const,
+      }));
+
     // Radius only — neighborhood search uses suggestions, not pin filtering.
     return [...baseline, ...live].filter((c) => withinKm(c.lat, c.lng, radiusKm));
   }, [reports, radiusKm]);
@@ -690,7 +729,7 @@ function MapView() {
                 : 100,
       });
 
-      const area = areaNameFromCity(c.city);
+      const area = areaDisplayFromStoredCity(c.city, language);
       const when = c.created_at
         ? new Date(c.created_at).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
         : null;
@@ -717,13 +756,30 @@ function MapView() {
     if (focusedPinId) {
       markersByIdRef.current.get(focusedPinId)?.openPopup();
     }
-  }, [visibleCheckIns, domainFilter, focusedPinId]);
+  }, [visibleCheckIns, domainFilter, focusedPinId, language]);
 
-  const handleSubmit = async (payload: { symptom: string; note: string; locationName: string; lat: number; lng: number }) => {
+  const handleSubmit = async (payload: {
+    symptom: string;
+    note: string;
+    locationName: string;
+    lat: number;
+    lng: number;
+    countryId: string;
+    regionId: string;
+    localAreaId: string;
+    localAreaLabel: string;
+    submittedAtLocal: string;
+  }) => {
     const { data, error } = await api.healthReports.insert({
       symptom: payload.symptom,
       note: payload.note,
-      city: payload.locationName,
+      city: encodeCheckInLocation({
+        mapLabel: payload.locationName,
+        localAreaId: payload.localAreaId,
+        countryId: payload.countryId,
+        regionId: payload.regionId,
+        submittedAtLocal: payload.submittedAtLocal,
+      }),
       lat: payload.lat,
       lng: payload.lng,
     });
@@ -1070,23 +1126,184 @@ function escapeHtml(s: string): string {
 function ReportForm({
   onSubmit,
 }: {
-  onSubmit: (p: { symptom: string; note: string; locationName: string; lat: number; lng: number }) => Promise<void>;
+  onSubmit: (p: {
+    symptom: string;
+    note: string;
+    locationName: string;
+    lat: number;
+    lng: number;
+    countryId: string;
+    regionId: string;
+    localAreaId: string;
+    localAreaLabel: string;
+    submittedAtLocal: string;
+  }) => Promise<void>;
 }) {
+  const language = useStore((s) => s.language);
   const [symptom, setSymptom] = useState('Fever');
   const [note, setNote] = useState('');
-  const [locationIdx, setLocationIdx] = useState(0);
+  const [countryId, setCountryId] = useState('');
+  const [regionId, setRegionId] = useState('');
+  const [localAreaId, setLocalAreaId] = useState('');
+  const [regionQuery, setRegionQuery] = useState('');
+  const [localAreaQuery, setLocalAreaQuery] = useState('');
+  const [regionOpen, setRegionOpen] = useState(false);
+  const [localAreaOpen, setLocalAreaOpen] = useState(false);
+  const [regionHighlight, setRegionHighlight] = useState(0);
+  const [localAreaHighlight, setLocalAreaHighlight] = useState(0);
+  const [errors, setErrors] = useState<{
+    country?: boolean;
+    region?: boolean;
+    localArea?: boolean;
+  }>({});
   const [submitting, setSubmitting] = useState(false);
+  const regionWrapRef = useRef<HTMLDivElement>(null);
+  const localAreaWrapRef = useRef<HTMLDivElement>(null);
+  const regionListRef = useRef<HTMLUListElement>(null);
+  const localAreaListRef = useRef<HTMLUListElement>(null);
+
+  const selectedCountry = useMemo(
+    () => COUNTRIES.find((c) => c.id === countryId) ?? null,
+    [countryId],
+  );
+  const selectedRegion = useMemo(
+    () => selectedCountry?.regions.find((r) => r.id === regionId) ?? null,
+    [selectedCountry, regionId],
+  );
+  const selectedLocalArea = useMemo(
+    () => selectedRegion?.localAreas.find((a) => a.id === localAreaId) ?? null,
+    [selectedRegion, localAreaId],
+  );
+
+  const regionOptions = useMemo(
+    () => (countryId ? filterRegions(countryId, regionQuery, language) : []),
+    [countryId, regionQuery, language],
+  );
+  const localAreaOptions = useMemo(
+    () =>
+      countryId && regionId
+        ? filterLocalAreas(countryId, regionId, localAreaQuery, language)
+        : [],
+    [countryId, regionId, localAreaQuery, language],
+  );
+
+  const regionEnabled = Boolean(countryId);
+  const localAreaEnabled = Boolean(regionId);
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      if (!regionWrapRef.current?.contains(e.target as Node)) {
+        setRegionOpen(false);
+      }
+      if (!localAreaWrapRef.current?.contains(e.target as Node)) {
+        setLocalAreaOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, []);
+
+  useEffect(() => {
+    setRegionHighlight(0);
+  }, [regionQuery, regionOpen]);
+
+  useEffect(() => {
+    setLocalAreaHighlight(0);
+  }, [localAreaQuery, localAreaOpen]);
+
+  useEffect(() => {
+    if (!regionOpen || !regionListRef.current) return;
+    const el = regionListRef.current.children[regionHighlight] as
+      | HTMLElement
+      | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [regionHighlight, regionOpen]);
+
+  useEffect(() => {
+    if (!localAreaOpen || !localAreaListRef.current) return;
+    const el = localAreaListRef.current.children[localAreaHighlight] as
+      | HTMLElement
+      | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [localAreaHighlight, localAreaOpen]);
+
+  // Keep stable IDs; refresh visible labels when language changes.
+  useEffect(() => {
+    if (selectedRegion) {
+      setRegionQuery(displayName(selectedRegion.names, language));
+    }
+  }, [language, selectedRegion]);
+
+  useEffect(() => {
+    if (selectedLocalArea) {
+      setLocalAreaQuery(displayName(selectedLocalArea.names, language));
+    }
+  }, [language, selectedLocalArea]);
+
+  const clearLocalArea = () => {
+    setLocalAreaId('');
+    setLocalAreaQuery('');
+    setLocalAreaOpen(false);
+  };
+
+  const clearRegion = () => {
+    setRegionId('');
+    setRegionQuery('');
+    setRegionOpen(false);
+    clearLocalArea();
+  };
+
+  const selectRegion = (region: AdminRegion) => {
+    setRegionId(region.id);
+    setRegionQuery(displayName(region.names, language));
+    setRegionOpen(false);
+    clearLocalArea();
+    setErrors((prev) => ({ ...prev, region: false, localArea: false }));
+  };
+
+  const selectLocalArea = (area: LocalArea) => {
+    setLocalAreaId(area.id);
+    setLocalAreaQuery(displayName(area.names, language));
+    setLocalAreaOpen(false);
+    setErrors((prev) => ({ ...prev, localArea: false }));
+  };
+
+  const handleCountryChange = (next: string) => {
+    setCountryId(next);
+    clearRegion();
+    setErrors((prev) => ({
+      ...prev,
+      country: false,
+      region: false,
+      localArea: false,
+    }));
+  };
 
   const handle = async () => {
+    const next = {
+      country: !countryId,
+      region: !regionId || !selectedRegion,
+      localArea: !localAreaId || !selectedLocalArea,
+    };
+    setErrors(next);
+    if (next.country || next.region || next.localArea || !selectedLocalArea) {
+      if (next.localArea && regionEnabled) setLocalAreaOpen(true);
+      else if (next.region && regionEnabled) setRegionOpen(true);
+      return;
+    }
+
     setSubmitting(true);
-    const loc = seoulNeighborhoods[locationIdx];
-    const jitter = () => (Math.random() - 0.5) * 0.02;
     await onSubmit({
       symptom,
       note: note.trim(),
-      locationName: loc.name,
-      lat: loc.lat + jitter(),
-      lng: loc.lng + jitter(),
+      locationName: localAreaMapLabel(countryId, regionId, selectedLocalArea),
+      lat: selectedLocalArea.lat,
+      lng: selectedLocalArea.lng,
+      countryId,
+      regionId,
+      localAreaId: selectedLocalArea.id,
+      localAreaLabel: displayName(selectedLocalArea.names, language),
+      submittedAtLocal: localIsoTimestamp(),
     });
     setSubmitting(false);
   };
@@ -1115,19 +1332,274 @@ function ReportForm({
 
       <div>
         <p className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold mb-2">
-          Neighborhood
+          {t('community.location')}
         </p>
-        <select
-          className="w-full p-3 rounded-card glass text-body text-ink-900 dark:text-ink-100 focus-ring"
-          value={locationIdx}
-          onChange={(e) => setLocationIdx(Number(e.target.value))}
-        >
-          {seoulNeighborhoods.map((n, i) => (
-            <option key={n.name} value={i}>
-              {n.name}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-2">
+          <div>
+            <label className="block text-[11px] font-bold text-ink-600 dark:text-ink-300 mb-1">
+              {t('community.country')}
+            </label>
+            <select
+              className={`w-full p-3 rounded-card glass text-body text-ink-900 dark:text-ink-100 focus-ring ${
+                errors.country ? 'ring-2 ring-coral-500/50' : ''
+              }`}
+              value={countryId}
+              onChange={(e) => handleCountryChange(e.target.value)}
+            >
+              <option value="">{t('community.select_country')}</option>
+              {COUNTRIES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {displayName(c.names, language)}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-[12px] leading-snug text-ink-300 dark:text-ink-600 font-normal">
+              {t('community.more_countries')}
+            </p>
+            {errors.country && (
+              <p className="mt-1.5 text-caption font-semibold text-coral-500" role="alert">
+                {t('community.country_required')}
+              </p>
+            )}
+          </div>
+
+          <div ref={regionWrapRef} className="relative">
+            <label
+              htmlFor="community-region-search"
+              className="block text-[11px] font-bold text-ink-600 dark:text-ink-300 mb-1"
+            >
+              {t('community.region')}
+            </label>
+            <div
+              className={`flex items-center gap-2 pl-3.5 pr-3 rounded-card glass ${
+                regionEnabled
+                  ? 'focus-within:ring-2 focus-within:ring-lighthouse-500/40'
+                  : 'opacity-50'
+              } ${errors.region ? 'ring-2 ring-coral-500/50' : ''}`}
+            >
+              <Search size={15} className="text-ink-300 shrink-0" strokeWidth={2.5} />
+              <input
+                id="community-region-search"
+                type="text"
+                role="combobox"
+                aria-expanded={regionOpen}
+                aria-controls="community-region-list"
+                aria-autocomplete="list"
+                aria-activedescendant={
+                  regionOpen && regionOptions[regionHighlight]
+                    ? `community-region-option-${regionOptions[regionHighlight].id}`
+                    : undefined
+                }
+                disabled={!regionEnabled}
+                className="w-full py-3 bg-transparent text-body text-ink-900 dark:text-ink-100 placeholder:text-ink-300 focus:outline-none min-w-0"
+                placeholder={t('community.select_region')}
+                autoComplete="off"
+                value={regionQuery}
+                onChange={(e) => {
+                  const q = e.target.value;
+                  setRegionQuery(q);
+                  setRegionOpen(true);
+                  if (
+                    selectedRegion &&
+                    q !== displayName(selectedRegion.names, language)
+                  ) {
+                    setRegionId('');
+                    clearLocalArea();
+                  }
+                  setErrors((prev) => ({ ...prev, region: false, localArea: false }));
+                }}
+                onFocus={() => regionEnabled && setRegionOpen(true)}
+                onKeyDown={(e) => {
+                  if (!regionEnabled) return;
+                  if (e.key === 'Escape') {
+                    setRegionOpen(false);
+                    return;
+                  }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setRegionOpen(true);
+                    setRegionHighlight((h) =>
+                      Math.min(h + 1, Math.max(regionOptions.length - 1, 0)),
+                    );
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setRegionHighlight((h) => Math.max(h - 1, 0));
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const pick = regionOptions[regionHighlight];
+                    if (pick) selectRegion(pick);
+                  }
+                }}
+              />
+            </div>
+
+            {regionOpen && regionEnabled && (
+              <ul
+                ref={regionListRef}
+                id="community-region-list"
+                role="listbox"
+                className="absolute left-0 right-0 z-30 mt-1.5 max-h-48 overflow-y-auto overscroll-contain rounded-card glass-strong border border-black/5 dark:border-white/10 shadow-medium py-1"
+              >
+                {regionOptions.length === 0 ? (
+                  <li className="px-3.5 py-2.5 text-caption text-ink-600 dark:text-ink-300">
+                    {t('community.no_matches')}
+                  </li>
+                ) : (
+                  regionOptions.map((region, index) => {
+                    const label = displayName(region.names, language);
+                    const active = region.id === regionId;
+                    const highlighted = index === regionHighlight;
+                    return (
+                      <li
+                        key={region.id}
+                        id={`community-region-option-${region.id}`}
+                        role="option"
+                        aria-selected={active}
+                        onMouseEnter={() => setRegionHighlight(index)}
+                      >
+                        <button
+                          type="button"
+                          className={`w-full text-left px-3.5 py-2.5 text-caption font-semibold break-words ${
+                            highlighted || active
+                              ? 'bg-lighthouse-500/15 text-lighthouse-600'
+                              : 'text-ink-900 dark:text-ink-100 hover:bg-black/5 dark:hover:bg-white/5'
+                          }`}
+                          onClick={() => selectRegion(region)}
+                        >
+                          {label}
+                        </button>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            )}
+
+            {errors.region && (
+              <p className="mt-1.5 text-caption font-semibold text-coral-500" role="alert">
+                {t('community.region_required')}
+              </p>
+            )}
+          </div>
+
+          <div ref={localAreaWrapRef} className="relative">
+            <label
+              htmlFor="community-local-area-search"
+              className="block text-[11px] font-bold text-ink-600 dark:text-ink-300 mb-1"
+            >
+              {t('community.local_area')}
+            </label>
+            <div
+              className={`flex items-center gap-2 pl-3.5 pr-3 rounded-card glass ${
+                localAreaEnabled
+                  ? 'focus-within:ring-2 focus-within:ring-lighthouse-500/40'
+                  : 'opacity-50'
+              } ${errors.localArea ? 'ring-2 ring-coral-500/50' : ''}`}
+            >
+              <MapPin size={15} className="text-ink-300 shrink-0" strokeWidth={2.5} />
+              <input
+                id="community-local-area-search"
+                type="text"
+                role="combobox"
+                aria-expanded={localAreaOpen}
+                aria-controls="community-local-area-list"
+                aria-autocomplete="list"
+                aria-activedescendant={
+                  localAreaOpen && localAreaOptions[localAreaHighlight]
+                    ? `community-local-area-option-${localAreaOptions[localAreaHighlight].id}`
+                    : undefined
+                }
+                disabled={!localAreaEnabled}
+                className="w-full py-3 bg-transparent text-body text-ink-900 dark:text-ink-100 placeholder:text-ink-300 focus:outline-none min-w-0"
+                placeholder={t('community.select_local_area')}
+                autoComplete="off"
+                value={localAreaQuery}
+                onChange={(e) => {
+                  const q = e.target.value;
+                  setLocalAreaQuery(q);
+                  setLocalAreaOpen(true);
+                  if (
+                    selectedLocalArea &&
+                    q !== displayName(selectedLocalArea.names, language)
+                  ) {
+                    setLocalAreaId('');
+                  }
+                  setErrors((prev) => ({ ...prev, localArea: false }));
+                }}
+                onFocus={() => localAreaEnabled && setLocalAreaOpen(true)}
+                onKeyDown={(e) => {
+                  if (!localAreaEnabled) return;
+                  if (e.key === 'Escape') {
+                    setLocalAreaOpen(false);
+                    return;
+                  }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setLocalAreaOpen(true);
+                    setLocalAreaHighlight((h) =>
+                      Math.min(h + 1, Math.max(localAreaOptions.length - 1, 0)),
+                    );
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setLocalAreaHighlight((h) => Math.max(h - 1, 0));
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const pick = localAreaOptions[localAreaHighlight];
+                    if (pick) selectLocalArea(pick);
+                  }
+                }}
+              />
+            </div>
+
+            {localAreaOpen && localAreaEnabled && (
+              <ul
+                ref={localAreaListRef}
+                id="community-local-area-list"
+                role="listbox"
+                className="absolute left-0 right-0 z-30 mt-1.5 max-h-48 overflow-y-auto overscroll-contain rounded-card glass-strong border border-black/5 dark:border-white/10 shadow-medium py-1"
+              >
+                {localAreaOptions.length === 0 ? (
+                  <li className="px-3.5 py-2.5 text-caption text-ink-600 dark:text-ink-300">
+                    {t('community.no_matches')}
+                  </li>
+                ) : (
+                  localAreaOptions.map((area, index) => {
+                    const label = displayName(area.names, language);
+                    const active = area.id === localAreaId;
+                    const highlighted = index === localAreaHighlight;
+                    return (
+                      <li
+                        key={area.id}
+                        id={`community-local-area-option-${area.id}`}
+                        role="option"
+                        aria-selected={active}
+                        onMouseEnter={() => setLocalAreaHighlight(index)}
+                      >
+                        <button
+                          type="button"
+                          className={`w-full text-left px-3.5 py-2.5 text-caption font-semibold break-words ${
+                            highlighted || active
+                              ? 'bg-lighthouse-500/15 text-lighthouse-600'
+                              : 'text-ink-900 dark:text-ink-100 hover:bg-black/5 dark:hover:bg-white/5'
+                          }`}
+                          onClick={() => selectLocalArea(area)}
+                        >
+                          {label}
+                        </button>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            )}
+
+            {errors.localArea && (
+              <p className="mt-1.5 text-caption font-semibold text-coral-500" role="alert">
+                {t('community.local_area_required')}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div>

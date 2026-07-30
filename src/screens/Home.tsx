@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Flame, Battery, Moon, Smartphone, TrendingUp, Sparkles,
+  Flame, Battery, Moon, Smartphone, TrendingUp, TrendingDown, Sparkles,
   ArrowRight, ClipboardCheck, FlaskConical, Check, Camera, ImagePlus, X, Target,
-  Lock, ChevronRight,
+  Lock, ChevronRight, RadioTower,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
@@ -17,6 +17,7 @@ import Lumi from '../components/Lumi';
 import { canUnlockWeeklyInsights } from '../lib/lifeBalance';
 import {
   buildCurrentWeekProgress,
+  getWeeklyLifeBalanceChange,
   localDateKey,
   WEEKDAY_LABELS,
 } from '../lib/dates';
@@ -103,9 +104,9 @@ export default function Home() {
     null;
 
   const weekSlots = buildCurrentWeekProgress(checkIns, user.memberSince);
-  const maxWeekScore = Math.max(
-    ...weekSlots.filter((s) => s.state === 'completed').map((s) => s.score),
-    1
+  const weeklyScoreChange = useMemo(
+    () => getWeeklyLifeBalanceChange(checkIns),
+    [checkIns],
   );
   const todayWeekdayIndex = weekSlots.findIndex((s) => s.isToday);
 
@@ -190,8 +191,10 @@ export default function Home() {
         />
       </div>
 
-      <div className="relative flex items-center gap-4">
-        <div className="relative flex-shrink-0">
+      {/* Three-part: score | info (centered) | character */}
+      <div className="relative flex items-center gap-1 max-[360px]:gap-0.5 sm:gap-1.5">
+        {/* Left — score ring (~42–45%) */}
+        <div className="relative shrink-0 max-[360px]:scale-[0.9] max-[360px]:origin-left">
           <div className="absolute inset-0 rounded-full bg-lighthouse-300/30 blur-2xl scale-110 pointer-events-none" />
           <button
             type="button"
@@ -229,25 +232,88 @@ export default function Home() {
           </AnimatePresence>
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-baseline gap-1.5">
-                <TrendingUp size={16} className="text-mint-500 shrink-0" strokeWidth={2.5} />
-                <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
-                  {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
-                </span>
-              </div>
-              <p className="mt-0.5 text-caption text-ink-600 dark:text-ink-300">
-                achieved!
+        {/* Center info + right character — info centered between score and character */}
+        <div className="flex-1 min-w-0 grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto] gap-x-0.5 max-[360px]:gap-x-0 sm:gap-x-1.5 gap-y-1.5 items-start">
+          {/* Center — status column (rows 1–3), horizontally centered in middle track */}
+          <div className="col-start-1 row-start-1 justify-self-center min-w-0 flex flex-col items-start gap-1.5 py-0.5">
+            <div className="flex items-center gap-1 whitespace-nowrap">
+              <Sparkles
+                size={10}
+                className="text-lighthouse-500 shrink-0"
+                strokeWidth={2.25}
+                aria-hidden
+              />
+              <p
+                className="uppercase tracking-[0.14em] font-semibold text-ink-900 dark:text-ink-100 whitespace-nowrap"
+                style={{ fontSize: 'clamp(10px, 2.6vw, 11px)' }}
+              >
+                Life Balance
               </p>
             </div>
 
+            <div className="flex items-center gap-1 whitespace-nowrap max-w-full">
+              {weeklyScoreChange.value > 0 ? (
+                <TrendingUp
+                  size={14}
+                  className="text-mint-500 shrink-0"
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+              ) : weeklyScoreChange.value < 0 ? (
+                <TrendingDown
+                  size={14}
+                  className="text-ink-400 shrink-0"
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+              ) : (
+                <TrendingUp
+                  size={14}
+                  className="text-mint-500 shrink-0"
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+              )}
+              <span
+                className="font-display font-bold tabular-nums text-ink-900 dark:text-ink-100 shrink-0"
+                style={{ fontSize: 'clamp(12px, 3.2vw, 14px)' }}
+              >
+                {weeklyScoreChange.value > 0
+                  ? `+${weeklyScoreChange.value}`
+                  : weeklyScoreChange.value < 0
+                    ? `\u2212${Math.abs(weeklyScoreChange.value)}`
+                    : '+0'}
+              </span>
+              <span
+                className="text-ink-600 dark:text-ink-300 whitespace-nowrap"
+                style={{ fontSize: 'clamp(10px, 2.7vw, 11px)' }}
+              >
+                this week
+              </span>
+            </div>
+
+            <div className="inline-flex items-center gap-1 px-1.5 max-[360px]:px-1 py-0.5 rounded-capsule bg-coral-500/10 border border-coral-500/20 whitespace-nowrap">
+              <Flame size={11} className="text-coral-500 shrink-0" fill="currentColor" aria-hidden />
+              <span
+                className="font-bold text-coral-600 dark:text-coral-300 leading-none whitespace-nowrap"
+                style={{ fontSize: 'clamp(10px, 2.7vw, 11px)' }}
+              >
+                {user.currentStreak}-day streak
+              </span>
+            </div>
+          </div>
+
+          {/* Right — flame character (~2× prior size), centered between heading and streak */}
+          <div
+            className="col-start-2 row-start-1 self-center relative shrink-0 flex items-center justify-center -translate-y-0.5 mr-0"
+            style={{ width: 'clamp(50px, 14.5vw, 68px)' }}
+          >
             <motion.img
               src="/images/character-2.png"
               alt=""
               draggable={false}
-              className="w-[58px] h-auto object-contain shrink-0 -mr-0.5 drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
+              aria-hidden
+              className="w-full h-auto object-contain object-center drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: [0, -3, 0] }}
               transition={{
@@ -257,86 +323,69 @@ export default function Home() {
             />
           </div>
 
-          <div className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1 rounded-capsule bg-coral-500/10 border border-coral-500/20 whitespace-nowrap">
-            <Flame size={12} className="text-coral-500 shrink-0" fill="currentColor" />
-            <span className="text-caption font-bold text-coral-600 dark:text-coral-300 leading-none">
-              {user.currentStreak}-day streak
-            </span>
-          </div>
-
           {checkedInToday && (
-            <div className="mt-1 flex items-center justify-center gap-1">
-              <span className="w-3 h-3 rounded-full border border-mint-500 flex items-center justify-center shrink-0">
-                <Check size={7} className="text-mint-500" strokeWidth={3.5} />
+            <div className="col-start-1 row-start-2 justify-self-center flex items-center gap-1 whitespace-nowrap">
+              <span
+                className="w-2.5 h-2.5 rounded-full border border-mint-500/70 flex items-center justify-center shrink-0"
+                aria-hidden
+              >
+                <Check size={6} className="text-mint-500/80" strokeWidth={2.75} />
               </span>
-              <span className="text-micro text-ink-600 dark:text-ink-300 leading-none whitespace-nowrap">
+              <span
+                className="text-ink-300 dark:text-ink-300/80 leading-none whitespace-nowrap"
+                style={{ fontSize: 'clamp(8px, 2.1vw, 9px)' }}
+              >
                 Updated today
               </span>
             </div>
           )}
+        </div>
+      </div>
 
-          <div className="mt-2.5" role="list" aria-label="Weekly check-in progress">
-            <div className="flex items-end gap-1.5 h-8">
-              {weekSlots.map((slot, i) => {
-                if (slot.state === 'before_start') {
-                  return (
-                    <div
-                      key={slot.date}
-                      role="listitem"
-                      className="flex-1 h-full flex items-end justify-center pb-0.5"
-                      title={slot.ariaLabel}
-                      aria-label={slot.ariaLabel}
-                    >
-                      <span
-                        className="text-[11px] leading-none text-ink-300/80 dark:text-ink-600 font-medium"
-                        aria-hidden
-                      >
-                        –
-                      </span>
+      <div className="relative mt-3" role="list" aria-label="Weekly check-in progress">
+        <div className="flex items-end justify-between gap-0">
+          {weekSlots.map((slot, i) => {
+            const label = WEEKDAY_LABELS[i] ?? '';
+            const isTodayCompleted = slot.isToday && slot.state === 'completed';
+            const isToday = slot.isToday || i === todayWeekdayIndex;
+
+            return (
+              <div
+                key={slot.date}
+                role="listitem"
+                className="flex-1 min-w-0 flex flex-col items-center"
+                title={slot.ariaLabel}
+                aria-label={slot.ariaLabel}
+              >
+                {/* Indicator row — gray dash or today's green check-in capsule */}
+                <div className="relative h-7 w-full flex items-center justify-center">
+                  {isTodayCompleted ? (
+                    <div className="-translate-y-[6px]" aria-hidden>
+                      <motion.span
+                        className="block w-2.5 h-[26px] rounded-full bg-mint-500 shadow-[0_2px_6px_rgba(16,185,129,0.28)]"
+                        initial={{ opacity: 0, scaleY: 0.7 }}
+                        animate={{ opacity: 1, scaleY: 1 }}
+                        transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 200, damping: 22 }}
+                        style={{ originY: 1 }}
+                      />
                     </div>
-                  );
-                }
+                  ) : (
+                    <span
+                      className={`block h-1 w-3.5 rounded-full ${
+                        slot.state === 'before_start'
+                          ? 'bg-ink-300/50 dark:bg-ink-600/50'
+                          : 'bg-ink-300/80 dark:bg-ink-600/70'
+                      }`}
+                      aria-hidden
+                    />
+                  )}
+                </div>
 
-                const isTodayPending = slot.isToday && slot.state !== 'completed';
-                const h =
-                  slot.state === 'completed'
-                    ? Math.max(28, (slot.score / maxWeekScore) * 78)
-                    : 16;
-
-                const background =
-                  slot.state === 'completed'
-                    ? 'linear-gradient(180deg, #34D399, #10B981)'
-                    : slot.state === 'missed'
-                      ? 'rgba(14,11,8,0.22)'
-                      : 'rgba(14,11,8,0.08)';
-
-                return (
-                  <motion.div
-                    key={slot.date}
-                    role="listitem"
-                    className={`flex-1 rounded-full ${
-                      isTodayPending
-                        ? 'ring-2 ring-lighthouse-500/80 shadow-[0_0_0_3px_rgba(255,178,122,0.35)]'
-                        : ''
-                    }`}
-                    style={{ background }}
-                    title={slot.ariaLabel}
-                    aria-label={slot.ariaLabel}
-                    initial={{ height: 6 }}
-                    animate={{ height: `${h}%` }}
-                    transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
-                  />
-                );
-              })}
-            </div>
-            <div className="mt-1 flex gap-1.5">
-              {WEEKDAY_LABELS.map((label, i) => (
                 <span
-                  key={`${weekSlots[i]?.date ?? label}-${i}`}
-                  className={`flex-1 text-center text-micro font-normal tracking-normal leading-none ${
-                    i === todayWeekdayIndex
+                  className={`mt-1 text-micro font-normal tracking-normal leading-none ${
+                    isToday
                       ? 'text-lighthouse-500'
-                      : weekSlots[i]?.state === 'before_start'
+                      : slot.state === 'before_start'
                         ? 'text-ink-300 dark:text-ink-600'
                         : 'text-ink-600 dark:text-ink-300'
                   }`}
@@ -344,16 +393,16 @@ export default function Home() {
                 >
                   {label}
                 </span>
-              ))}
-            </div>
-          </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {tip && (
         <motion.button
           type="button"
-          className="relative mt-2.5 w-full text-left px-3.5 py-2.5 rounded-card bg-mint-500/10 border border-mint-500/20 focus-ring transition-colors hover:bg-mint-500/15 active:bg-mint-500/20"
+          className="relative mt-3 w-full max-w-full text-left p-3.5 rounded-card bg-mint-500/10 border border-mint-500/20 focus-ring transition-colors hover:bg-mint-500/15 active:bg-mint-500/20"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35 }}
@@ -361,7 +410,7 @@ export default function Home() {
           onClick={() => setTipDetailOpen(true)}
           aria-label="Open full tip"
         >
-          <div className="flex items-center gap-1.5 mb-0.5">
+          <div className="flex items-center gap-1.5 mb-1">
             <img
               src="/images/lumi.png"
               alt=""
@@ -384,7 +433,7 @@ export default function Home() {
           {isAuthenticated && !weeklyUnlocked && (
             <>
               <div
-                className="mt-2 mb-1.5 border-t border-ink-100/80 dark:border-white/10"
+                className="mt-2.5 mb-2 border-t border-ink-100/80 dark:border-white/10"
                 aria-hidden
               />
               <div className="flex items-start gap-1 min-w-0">
@@ -580,10 +629,13 @@ export default function Home() {
 
       {/* Today's four signals */}
       <div className="px-6 mt-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
-            Today&apos;s signals
-          </h2>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <RadioTower size={15} className="text-lighthouse-600" strokeWidth={2.5} />
+            <h2 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
+              Today&apos;s Signals
+            </h2>
+          </div>
           {!checkedInToday && (
             <button
               type="button"

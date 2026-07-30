@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Star, Check, Moon, Camera, ImagePlus, X } from 'lucide-react';
+import { Clock, Star, Check, Moon, Camera, ImagePlus, X, ChevronRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
@@ -15,6 +15,7 @@ import {
   challengeCycleEpoch,
   orderChallengesForList,
 } from '../lib/challengeCycle';
+import { getRecommendedChallenges } from '../lib/challengeRecommendations';
 import { compressProofPhoto } from '../lib/proofPhoto';
 
 const podiumBadges: Record<1 | 2 | 3, { src: string; alt: string; bar: string }> = {
@@ -142,7 +143,7 @@ export default function Challenges() {
       <div className="noise-overlay" />
 
       <div className="relative px-6 pt-4" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
-        <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-1">
+        <p className="text-micro uppercase tracking-[0.18em] text-ink-600/70 dark:text-ink-300/70 mb-2.5">
           Quests &amp; skills
         </p>
         <h1 className="font-display font-bold text-display-l text-ink-900 dark:text-ink-100 tracking-tight">
@@ -334,94 +335,114 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
   const [pageOpen, setPageOpen] = useState(false);
   const [result, setResult] = useState<{ hours: number; completed: boolean } | null>(null);
   const sleeping = Boolean(sleepSession);
+  const showLastNight =
+    !result && Boolean(lastSleep) && !quest.completed && !sleeping && (lastSleep?.hours ?? 0) > 0;
 
   return (
     <>
       <motion.div
-        className={`relative mx-6 mt-4 p-5 rounded-hero overflow-hidden ${
+        className={`relative mx-6 mt-2.5 px-2.5 py-2 rounded-hero overflow-hidden ${
           quest.completed ? 'glass-tint-warm' : 'glass-strong'
         }`}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
         {!quest.completed && (
-          <AttentionBadge className="absolute top-3 left-3 z-10" size="md" />
+          <AttentionBadge className="absolute top-1.5 left-1.5 z-10" size="sm" />
         )}
         <div
-          className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)', filter: 'blur(26px)' }}
+          className="absolute -top-14 -right-14 w-36 h-36 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.3), transparent 70%)', filter: 'blur(22px)' }}
         />
         <div
-          className="absolute -bottom-14 -left-14 w-40 h-40 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.4), transparent 70%)', filter: 'blur(26px)' }}
+          className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.35), transparent 70%)', filter: 'blur(22px)' }}
         />
 
-        <div className="relative flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0 pl-6">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-micro uppercase tracking-wider font-bold text-ink-300">Sleep</span>
-            </div>
-            <h3 className="font-display font-bold text-title text-ink-900 dark:text-ink-100">{quest.title}</h3>
-            <p className="text-caption text-ink-600 dark:text-ink-300 mt-1">{quest.description}</p>
+        <div className="relative flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0 pl-5">
+            <span className="text-micro uppercase tracking-wider font-bold text-ink-300">Sleep</span>
+            <h3 className="font-display font-bold text-caption leading-tight text-ink-900 dark:text-ink-100">
+              {quest.title}
+            </h3>
+            <p className="text-[12px] leading-snug text-ink-600 dark:text-ink-300 mt-0.5 line-clamp-2">
+              {quest.description}
+            </p>
           </div>
-          <div className="w-12 h-12 rounded-full bg-night-800/10 dark:bg-night-700 flex items-center justify-center shrink-0">
-            <Moon size={22} className="text-lavender-500" />
+          <div className="w-8 h-8 rounded-full bg-night-800/10 dark:bg-night-700 flex items-center justify-center shrink-0 overflow-hidden p-0.5">
+            <img
+              src="/images/sleeping-flame.png"
+              alt=""
+              draggable={false}
+              aria-hidden
+              className="w-full h-full object-contain object-center"
+            />
           </div>
         </div>
 
-        <div className="relative mt-4 space-y-3">
+        <div className="relative mt-1 space-y-1">
           {result && (
-            <div className={`p-3 rounded-card text-center ${
+            <div className={`px-2 py-1 rounded-card text-center ${
               result.completed
                 ? 'bg-mint-500/15 text-mint-700 dark:text-mint-300'
                 : 'bg-coral-500/10 text-coral-600 dark:text-coral-300'
             }`}>
-              <p className="font-display font-bold text-body">
+              <p className="font-display font-bold text-[11px]">
                 {result.hours.toFixed(1)}h recorded
-              </p>
-              <p className="text-caption mt-0.5">
                 {result.completed
-                  ? `Goal reached — +${quest.points} pts`
-                  : `Need ${SLEEP_GOAL_HOURS}h to complete. Try again tonight.`}
+                  ? ` — +${quest.points} pts`
+                  : ` · need ${SLEEP_GOAL_HOURS}h`}
               </p>
             </div>
           )}
-          {!result && lastSleep && !quest.completed && !sleeping && (
-            <p className="text-caption text-ink-300 text-center">
+          {showLastNight && lastSleep && (
+            <p className="text-[11px] text-ink-300 text-center leading-none">
               Last night: {lastSleep.hours.toFixed(1)}h
             </p>
           )}
           {sleeping && (
-            <p className="text-caption text-lighthouse-600 dark:text-lighthouse-300 text-center font-semibold">
-              Recording in progress — open the sleep page to wake up.
+            <p className="text-[11px] text-lighthouse-600 dark:text-lighthouse-300 text-center font-semibold leading-snug">
+              Recording in progress — open sleep to wake up.
             </p>
           )}
           {quest.completed ? (
-            <div className="flex items-center justify-center gap-2 py-3">
-              <Check size={16} className="text-mint-500" strokeWidth={3} />
+            <div className="flex items-center justify-center gap-1.5 py-1.5">
+              <Check size={14} className="text-mint-500" strokeWidth={3} />
               <span className="font-display font-bold text-caption text-mint-700 dark:text-mint-300">
                 Completed
               </span>
             </div>
           ) : (
-            <motion.button
-              className="w-full py-3.5 rounded-capsule hero-glow text-white font-display font-bold text-caption shadow-soft flex items-center justify-center gap-2"
-              whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                setResult(null);
-                setPageOpen(true);
-              }}
-            >
-              <Moon size={16} />
-              {sleeping ? 'Continue recording' : 'Record sleep time'}
-            </motion.button>
+            <div className="flex items-center gap-2">
+              <motion.button
+                className="flex-1 min-w-0 py-2 rounded-capsule hero-glow text-white font-display font-bold text-caption shadow-soft flex items-center justify-center gap-1.5"
+                whileTap={{ scale: 0.97 }}
+                onClick={() => {
+                  setResult(null);
+                  setPageOpen(true);
+                }}
+              >
+                <Moon size={14} />
+                {sleeping ? 'Continue' : 'Record sleep time'}
+              </motion.button>
+              <div className="shrink-0 flex flex-col items-end gap-0.5 text-[11px] leading-none">
+                <span className="flex items-center gap-0.5 text-ink-300">
+                  <Clock size={10} />{quest.timeEstimate}
+                </span>
+                <span className="flex items-center gap-0.5 text-lighthouse-600 dark:text-lighthouse-300 font-bold">
+                  <Star size={10} fill="currentColor" />+{quest.points}
+                </span>
+              </div>
+            </div>
           )}
-          <div className="flex items-center justify-between text-caption text-ink-300">
-            <span className="flex items-center gap-1"><Clock size={12} />{quest.timeEstimate}</span>
-            <span className="flex items-center gap-1 text-lighthouse-600 dark:text-lighthouse-300 font-bold">
-              <Star size={12} fill="currentColor" />+{quest.points}
-            </span>
-          </div>
+          {quest.completed && (
+            <div className="flex items-center justify-between text-[11px] text-ink-300 leading-none pt-0.5">
+              <span className="flex items-center gap-1"><Clock size={11} />{quest.timeEstimate}</span>
+              <span className="flex items-center gap-0.5 text-lighthouse-600 dark:text-lighthouse-300 font-bold">
+                <Star size={11} fill="currentColor" />+{quest.points}
+              </span>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -433,6 +454,96 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
         }}
       />
     </>
+  );
+}
+
+/* =========== Recommended for You (compact horizontal) =========== */
+function RecommendedForYou({
+  onSelect,
+}: {
+  onSelect: (c: Challenge) => void;
+}) {
+  const { challenges, checkIns } = useStore();
+  const recommendations = useMemo(
+    () => getRecommendedChallenges(challenges, checkIns, 3),
+    [challenges, checkIns],
+  );
+
+  if (recommendations.length === 0) return null;
+
+  return (
+    <div className="mt-5">
+      <div className="px-6">
+        <h2 className="font-display font-bold text-caption text-ink-900 dark:text-ink-100">
+          Recommended for You
+        </h2>
+        <p className="mt-2 text-[11px] text-ink-600 dark:text-ink-300 leading-snug">
+          Based on your recent check-ins
+        </p>
+      </div>
+
+      <div
+        className="mt-1.5 flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory overscroll-x-contain px-6"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        {recommendations.map(({ challenge, reason }) => (
+          <motion.button
+            key={challenge.id}
+            type="button"
+            className={`relative shrink-0 snap-start w-[68%] sm:w-[64%] md:w-[calc((100%-2rem)/3)] h-[99px] text-left px-3 py-2 rounded-hero overflow-hidden flex flex-col ${
+              challenge.completed ? 'glass-tint-warm' : 'glass-strong'
+            }`}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => !challenge.completed && onSelect(challenge)}
+          >
+            <div
+              className="absolute -top-10 -right-10 w-24 h-24 rounded-full pointer-events-none"
+              style={{
+                background:
+                  challenge.difficulty === 'easy'
+                    ? 'radial-gradient(circle, rgba(255,202,107,0.4), transparent 70%)'
+                    : challenge.difficulty === 'medium'
+                      ? 'radial-gradient(circle, rgba(255,178,122,0.5), transparent 70%)'
+                      : 'radial-gradient(circle, rgba(255,77,106,0.4), transparent 70%)',
+                filter: 'blur(18px)',
+              }}
+            />
+
+            <div className="relative flex items-center justify-between gap-2 min-w-0">
+              <span
+                className={`text-micro uppercase tracking-wider font-bold ${
+                  challenge.difficulty === 'easy'
+                    ? 'text-mint-700 dark:text-mint-300'
+                    : challenge.difficulty === 'medium'
+                      ? 'text-lighthouse-600 dark:text-lighthouse-300'
+                      : 'text-coral-600 dark:text-coral-300'
+                }`}
+              >
+                {challenge.difficulty}
+              </span>
+              <span className="shrink-0 flex items-center gap-0.5 text-[11px] text-lighthouse-600 dark:text-lighthouse-300 font-bold">
+                <Star size={10} fill="currentColor" />+{challenge.points}
+              </span>
+            </div>
+
+            <h3 className="relative font-display font-bold text-caption leading-tight text-ink-900 dark:text-ink-100 mt-0.5 truncate">
+              {challenge.title}
+            </h3>
+
+            <p className="relative mt-0.5 text-[11px] leading-snug text-ink-600 dark:text-ink-300 truncate">
+              {reason}
+            </p>
+
+            <div className="relative mt-auto pt-1.5 flex items-center">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-capsule hero-glow text-white text-[10px] font-bold shadow-soft">
+                Start
+                <ChevronRight size={11} strokeWidth={2.5} />
+              </span>
+            </div>
+          </motion.button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -453,12 +564,14 @@ function ChallengesView({
     <>
       {sleepQuest && <SleepQuestCard quest={sleepQuest} />}
 
-      {/* Pack filter */}
-      <div className="px-6 mt-4 flex gap-2 overflow-x-auto scrollbar-none">
+      <RecommendedForYou onSelect={onSelect} />
+
+      {/* Pack filter — stays near top after compact recommendations */}
+      <div className="px-6 mt-2.5 flex gap-2 overflow-x-auto scrollbar-none">
         {packs.map((pack) => (
           <motion.button
             key={pack.key}
-            className={`whitespace-nowrap px-4 py-2 rounded-capsule text-caption font-semibold ${
+            className={`whitespace-nowrap px-3.5 py-1.5 rounded-capsule text-caption font-semibold ${
               activePack === pack.key
                 ? 'hero-glow text-white shadow-soft'
                 : 'glass text-ink-600 dark:text-ink-300'
@@ -472,11 +585,11 @@ function ChallengesView({
       </div>
 
       {/* Difficulty filter */}
-      <div className="px-6 mt-3 flex gap-2">
+      <div className="px-6 mt-5 flex gap-2">
         {difficulties.map((diff) => (
           <motion.button
             key={diff}
-            className={`flex-1 py-2.5 rounded-capsule text-caption font-bold capitalize ${
+            className={`flex-1 py-2 rounded-capsule text-caption font-bold capitalize ${
               activeDifficulty === diff
                 ? 'hero-glow text-white shadow-soft'
                 : 'glass text-ink-600 dark:text-ink-300'
@@ -490,7 +603,7 @@ function ChallengesView({
       </div>
 
       {/* Challenge cards */}
-      <div className="px-6 mt-4 space-y-3">
+      <div className="px-6 mt-5 space-y-5">
         {challenges.map((challenge, idx) => (
           <motion.button
             key={challenge.id}
@@ -523,7 +636,7 @@ function ChallengesView({
 
             <div className="relative flex items-start justify-between">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm">{challenge.flag}</span>
                   <span
                     className={`text-micro uppercase tracking-wider font-bold ${
@@ -538,7 +651,7 @@ function ChallengesView({
                   </span>
                 </div>
                 <h3 className="font-display font-bold text-title text-ink-900 dark:text-ink-100">{challenge.title}</h3>
-                <p className="text-caption text-ink-600 dark:text-ink-300 mt-1">{challenge.description}</p>
+                <p className="text-caption text-ink-600 dark:text-ink-300 mt-1.5">{challenge.description}</p>
               </div>
               {challenge.completed && (
                 <div className="ml-3 flex-shrink-0 flex flex-col items-end gap-2">
@@ -556,7 +669,7 @@ function ChallengesView({
                 </div>
               )}
             </div>
-            <div className="relative flex items-center gap-3 mt-3">
+            <div className="relative flex items-center gap-3 mt-4">
               <div className="flex items-center gap-1 text-caption text-ink-600 dark:text-ink-300">
                 <Clock size={13} />
                 {challenge.timeEstimate}

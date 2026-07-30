@@ -127,3 +127,44 @@ export function buildCurrentWeekProgress(
     return slot;
   });
 }
+
+export type WeeklyScoreChange = {
+  /** Score delta this Mon–Sun week; 0 when comparison isn’t available yet. */
+  value: number;
+};
+
+/**
+ * Weekly Life Balance change for the Home summary.
+ *
+ * - First-time / insufficient comparison data → 0 (“+0 this week”)
+ * - ≥2 valid scores in the current local Mon–Sun week → latest − earliest
+ *
+ * Valid = completed check-in with score > 0. History is never modified.
+ */
+export function getWeeklyLifeBalanceChange(
+  checkIns: CheckIn[],
+  now: Date = new Date()
+): WeeklyScoreChange {
+  const allValid = checkIns
+    .filter((c) => c.completed && c.score > 0)
+    .slice()
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+  // Genuine first-time (or only one score ever): no comparison baseline.
+  if (allValid.length < 2) return { value: 0 };
+
+  const weekStart = startOfWeekMonday(now);
+  const weekStartKey = localDateKey(weekStart);
+  const weekEndKey = addLocalDays(weekStartKey, 6);
+
+  const weekValid = allValid.filter(
+    (c) => c.date >= weekStartKey && c.date <= weekEndKey
+  );
+
+  // No earlier score this week to compare against.
+  if (weekValid.length < 2) return { value: 0 };
+
+  const earliest = weekValid[0]!;
+  const latest = weekValid[weekValid.length - 1]!;
+  return { value: latest.score - earliest.score };
+}
