@@ -359,8 +359,8 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
           style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.35), transparent 70%)', filter: 'blur(22px)' }}
         />
 
-        <div className="relative flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0 pl-5">
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0 pl-5 pr-1">
             <span className="text-micro uppercase tracking-wider font-bold text-ink-300">Sleep</span>
             <h3 className="font-display font-bold text-caption leading-tight text-ink-900 dark:text-ink-100">
               {quest.title}
@@ -369,13 +369,13 @@ function SleepQuestCard({ quest }: { quest: Challenge }) {
               {quest.description}
             </p>
           </div>
-          <div className="w-8 h-8 rounded-full bg-night-800/10 dark:bg-night-700 flex items-center justify-center shrink-0 overflow-hidden p-0.5">
+          <div className="w-[80px] h-[80px] rounded-full bg-night-800/10 dark:bg-night-700 flex items-center justify-center shrink-0 overflow-hidden p-0 self-center">
             <img
               src="/images/sleeping-flame.png"
               alt=""
               draggable={false}
               aria-hidden
-              className="w-full h-full object-contain object-center"
+              className="w-full h-full object-contain object-center origin-center scale-[1.72]"
             />
           </div>
         </div>
@@ -472,18 +472,21 @@ function RecommendedForYou({
   if (recommendations.length === 0) return null;
 
   return (
-    <div className="mt-5">
+    <div className="mt-[30px]">
       <div className="px-6">
-        <h2 className="font-display font-bold text-caption text-ink-900 dark:text-ink-100">
+        <h2
+          className="font-display font-bold text-ink-900 dark:text-ink-100"
+          style={{ fontSize: '11px', lineHeight: '1.3' }}
+        >
           Recommended for You
         </h2>
-        <p className="mt-2 text-[11px] text-ink-600 dark:text-ink-300 leading-snug">
+        <p className="mt-1 text-[11px] text-ink-300 dark:text-ink-300/80 leading-snug">
           Based on your recent check-ins
         </p>
       </div>
 
       <div
-        className="mt-1.5 flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory overscroll-x-contain px-6"
+        className="mt-1 flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory overscroll-x-contain px-6"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {recommendations.map(({ challenge, reason }) => (
@@ -565,6 +568,16 @@ function ChallengesView({
       {sleepQuest && <SleepQuestCard quest={sleepQuest} />}
 
       <RecommendedForYou onSelect={onSelect} />
+
+      {/* Explore More — browse all challenges */}
+      <div className="px-6 mt-[22px]">
+        <h2
+          className="font-display font-bold text-ink-900 dark:text-ink-100"
+          style={{ fontSize: '11px', lineHeight: '1.3' }}
+        >
+          Explore More
+        </h2>
+      </div>
 
       {/* Pack filter — stays near top after compact recommendations */}
       <div className="px-6 mt-2.5 flex gap-2 overflow-x-auto scrollbar-none">
