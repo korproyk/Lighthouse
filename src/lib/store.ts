@@ -9,8 +9,10 @@ import {
   computeLifeBalanceScore,
   generateDailyTip,
   generateWeeklyInsight,
+  generatePersonalChallenge,
   canUnlockWeeklyInsights,
   type WeeklyInsight,
+  type PersonalChallenge,
 } from './lifeBalance';
 
 export interface Account {
@@ -60,6 +62,7 @@ interface AppState {
   dailyTip: string | null;
   weeklyInsight: WeeklyInsight | null;
   lastWeeklyInsightAt: string | null;
+  personalChallenge: PersonalChallenge | null;
 
   setOnboarded: () => void;
   toggleDarkMode: () => void;
@@ -67,6 +70,8 @@ interface AppState {
   setLanguage: (lang: string) => void;
   setActiveTab: (tab: number) => void;
   completeChallenge: (id: string, proofDataUrl?: string) => void;
+  completePersonalChallenge: (proofDataUrl: string) => boolean;
+  ensurePersonalChallenge: () => void;
   refreshExpiredChallenges: () => void;
   logCheckIn: (data: Partial<CheckIn>) => void;
   logDailyCheckIn: (data: {
@@ -147,6 +152,7 @@ export const useStore = create<AppState>()(
       dailyTip: null,
       weeklyInsight: null,
       lastWeeklyInsightAt: null,
+      personalChallenge: null,
 
       setOnboarded: () => set({ hasOnboarded: true }),
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
@@ -185,6 +191,53 @@ export const useStore = create<AppState>()(
             },
           };
         }),
+      completePersonalChallenge: (proofDataUrl) => {
+        const s = get();
+        const challenge = s.personalChallenge;
+        if (!challenge || challenge.completed || !proofDataUrl) return false;
+        const today = new Date().toISOString().split('T')[0];
+        if (challenge.date !== today) return false;
+        const nextXp = (s.user.xp ?? 0) + challenge.points;
+        const nextTier = tierFromXp(nextXp);
+        set({
+          personalChallenge: {
+            ...challenge,
+            completed: true,
+            completedAt: Date.now(),
+            proofDataUrl,
+          },
+          user: {
+            ...s.user,
+            xp: nextXp,
+            tier: nextTier.id,
+            tierProgress: tierProgressPercent(nextXp),
+            totalChallenges: s.user.totalChallenges + 1,
+          },
+        });
+        return true;
+      },
+      ensurePersonalChallenge: () => {
+        const s = get();
+        const today = new Date().toISOString().split('T')[0];
+        const todayRow = s.checkIns.find((c) => c.date === today);
+        if (!todayRow?.completed) {
+          if (s.personalChallenge) set({ personalChallenge: null });
+          return;
+        }
+        if (s.personalChallenge?.date === today) return;
+        set({
+          personalChallenge: generatePersonalChallenge(
+            {
+              mood: todayRow.mood,
+              sleep: todayRow.sleep,
+              screenTime: todayRow.screenTime,
+              socialBattery: todayRow.socialBattery,
+              score: todayRow.score,
+            },
+            today
+          ),
+        });
+      },
       refreshExpiredChallenges: () =>
         set((s) => {
           const next = refreshChallengeList(s.challenges);
@@ -261,9 +314,15 @@ export const useStore = create<AppState>()(
         );
         const weeklyChange = yesterday?.completed ? score - yesterday.score : s.user.weeklyChange;
 
+        const personalChallenge = generatePersonalChallenge(
+          { ...data, score },
+          today
+        );
+
         set({
           checkIns: withToday,
           dailyTip: tip,
+          personalChallenge,
           weeklyInsight: weeklyInsight ?? s.weeklyInsight,
           lastWeeklyInsightAt: needsFreshWeekly && weeklyInsight
             ? weeklyInsight.generatedAt
@@ -320,6 +379,7 @@ export const useStore = create<AppState>()(
           dailyTip: null,
           weeklyInsight: null,
           lastWeeklyInsightAt: null,
+          personalChallenge: null,
         });
       },
 
@@ -391,6 +451,7 @@ export const useStore = create<AppState>()(
           dailyTip: null,
           weeklyInsight: null,
           lastWeeklyInsightAt: null,
+          personalChallenge: null,
         });
       },
       loginAccount: (nickname) => {
@@ -407,6 +468,8 @@ export const useStore = create<AppState>()(
           language: account.language,
           joinedGroupId: account.joinedGroupId ?? null,
           customGroups: account.customGroups ?? [],
+          personalChallenge: null,
+          dailyTip: null,
         });
         return true;
       },
@@ -612,6 +675,7 @@ export const useStore = create<AppState>()(
         dailyTip: state.dailyTip,
         weeklyInsight: state.weeklyInsight,
         lastWeeklyInsightAt: state.lastWeeklyInsightAt,
+        personalChallenge: state.personalChallenge,
       }),
     }
   )

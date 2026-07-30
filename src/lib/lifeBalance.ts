@@ -112,6 +112,154 @@ export function generateDailyTip(input: {
   }
 }
 
+export type PersonalChallengeFocus = 'mood' | 'sleep' | 'screen' | 'social';
+
+export interface PersonalChallenge {
+  date: string;
+  title: string;
+  description: string;
+  instructions: string;
+  points: number;
+  difficulty: 'easy' | 'medium' | 'bold';
+  timeEstimate: string;
+  focus: PersonalChallengeFocus;
+  completed: boolean;
+  completedAt?: number;
+  proofDataUrl?: string;
+}
+
+type ChallengeSeed = Omit<PersonalChallenge, 'date' | 'completed' | 'completedAt' | 'proofDataUrl'>;
+
+const PERSONAL_BY_FOCUS: Record<PersonalChallengeFocus, ChallengeSeed[]> = {
+  sleep: [
+    {
+      focus: 'sleep',
+      title: 'Phone Outside Bedroom',
+      description: 'Park your phone outside the bedroom for tonight’s wind-down.',
+      instructions:
+        'Thirty minutes before bed, leave your phone in another room. Do a calm activity instead — stretch, read, or just dim the lights. Snap a photo of the phone charging outside your room.',
+      points: 15,
+      difficulty: 'easy',
+      timeEstimate: '30 min',
+    },
+    {
+      focus: 'sleep',
+      title: 'Lights-Down Stretch',
+      description: 'A short stretch under low light before you sleep.',
+      instructions:
+        'Dim the lights and stretch gently for about 10 minutes. No screens during it. Take a photo of your dim room or stretch setup when you finish.',
+      points: 12,
+      difficulty: 'easy',
+      timeEstimate: '10 min',
+    },
+  ],
+  screen: [
+    {
+      focus: 'screen',
+      title: 'One App Off After Dinner',
+      description: 'Close one heavy app after dinner and leave it closed.',
+      instructions:
+        'Pick the app that usually eats your evening. Close it after dinner and don’t reopen it tonight. Photo the lock screen or a sticky note with the app name crossed out.',
+      points: 15,
+      difficulty: 'easy',
+      timeEstimate: 'Tonight',
+    },
+    {
+      focus: 'screen',
+      title: 'Walk Before Scroll',
+      description: 'Take a short outdoor walk before opening social apps.',
+      instructions:
+        'Before you open social media, step outside for at least 10 minutes. Photo something from the walk — sky, street, or your shoes on the path.',
+      points: 15,
+      difficulty: 'easy',
+      timeEstimate: '10 min',
+    },
+  ],
+  social: [
+    {
+      focus: 'social',
+      title: 'Quiet Block',
+      description: 'Protect one no-plans block to recharge your social battery.',
+      instructions:
+        'Block 45–60 minutes with no plans and no group chats. Do something quiet alone. Photo your calm setup — tea, book, or a cozy corner.',
+      points: 15,
+      difficulty: 'easy',
+      timeEstimate: '45 min',
+    },
+    {
+      focus: 'social',
+      title: 'One Soft Check-In',
+      description: 'Send one low-pressure message to someone safe.',
+      instructions:
+        'Text or call one person who feels easy — no big talk required. A “thinking of you” is enough. Photo the sent message (blur names if you want).',
+      points: 12,
+      difficulty: 'easy',
+      timeEstimate: '5 min',
+    },
+  ],
+  mood: [
+    {
+      focus: 'mood',
+      title: 'Two-Line Mood Note',
+      description: 'Write what drained you and one small win.',
+      instructions:
+        'On paper or in notes, write two lines: what drained you today, and one small win. Photo the note when you’re done.',
+      points: 12,
+      difficulty: 'easy',
+      timeEstimate: '5 min',
+    },
+    {
+      focus: 'mood',
+      title: 'Sunshine Reset',
+      description: 'Step outside for a short mood reset.',
+      instructions:
+        'Go outside for 8–10 minutes — sit, walk, or just feel the air. Photo the sky or a detail from outdoors.',
+      points: 12,
+      difficulty: 'easy',
+      timeEstimate: '10 min',
+    },
+  ],
+};
+
+function weakestFocus(input: {
+  mood: number;
+  sleep: number;
+  screenTime: number;
+  socialBattery: number;
+}): PersonalChallengeFocus {
+  const parts: { key: PersonalChallengeFocus; score: number }[] = [
+    { key: 'mood', score: clamp((input.mood / 4) * 100) },
+    { key: 'sleep', score: sleepHoursToScore(input.sleep) },
+    { key: 'screen', score: screenHoursToScore(input.screenTime) },
+    { key: 'social', score: clamp(input.socialBattery) },
+  ].sort((a, b) => a.score - b.score);
+  return parts[0].key;
+}
+
+/** Build a personal daily challenge from today’s four check-in signals. */
+export function generatePersonalChallenge(
+  input: {
+    mood: number;
+    sleep: number;
+    screenTime: number;
+    socialBattery: number;
+    score: number;
+  },
+  date: string
+): PersonalChallenge {
+  const focus =
+    input.score >= 85 ? 'mood' : weakestFocus(input);
+  const pool = PERSONAL_BY_FOCUS[focus];
+  // Stable pick for the day so refresh doesn’t reshuffle.
+  const dayHash = date.split('').reduce((n, ch) => n + ch.charCodeAt(0), 0);
+  const seed = pool[dayHash % pool.length];
+  return {
+    ...seed,
+    date,
+    completed: false,
+  };
+}
+
 export function completedCheckIns(checkIns: CheckIn[]): CheckIn[] {
   return checkIns.filter((c) => c.completed && c.score > 0);
 }

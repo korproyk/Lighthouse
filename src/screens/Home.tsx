@@ -2,15 +2,19 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Flame, Battery, Moon, Smartphone, TrendingUp, Sparkles,
-  ArrowRight, ClipboardCheck, FlaskConical, Check,
+  ArrowRight, ClipboardCheck, FlaskConical, Check, Camera, ImagePlus, X, Target,
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { t } from '../lib/i18n';
 import ScoreRing from '../components/ScoreRing';
 import DailyCheckIn from '../components/DailyCheckIn';
 import CheckInSavedPopup from '../components/CheckInSavedPopup';
 import WeeklyInsights from '../components/WeeklyInsights';
+import BottomSheet from '../components/BottomSheet';
+import Lumi from '../components/Lumi';
 import { canUnlockWeeklyInsights } from '../lib/lifeBalance';
+import { compressProofPhoto } from '../lib/proofPhoto';
 
 const moodEmojis = ['\u{1F614}', '\u{1F615}', '\u{1F610}', '\u{1F642}', '\u{1F60A}'];
 const moodLabels = ['Sad', 'Meh', 'Okay', 'Good', 'Great'];
@@ -32,7 +36,10 @@ export default function Home() {
     checkIns,
     dailyTip,
     weeklyInsight,
+    personalChallenge,
     ensureWeeklyInsight,
+    ensurePersonalChallenge,
+    completePersonalChallenge,
   } = useStore();
 
   const [checkInOpen, setCheckInOpen] = useState(false);
@@ -40,16 +47,25 @@ export default function Home() {
   const [savedScore, setSavedScore] = useState<number | undefined>();
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [balanceTipOpen, setBalanceTipOpen] = useState(false);
+  const [challengeOpen, setChallengeOpen] = useState(false);
+  const [showComplete, setShowComplete] = useState(false);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [proofBusy, setProofBusy] = useState(false);
+  const [proofError, setProofError] = useState<string | null>(null);
+  const proofInputRef = useRef<HTMLInputElement | null>(null);
   const balanceTipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingWeekly = useRef(false);
 
   useEffect(() => {
     ensureWeeklyInsight();
-  }, [ensureWeeklyInsight, checkIns]);
+    ensurePersonalChallenge();
+  }, [ensureWeeklyInsight, ensurePersonalChallenge, checkIns]);
 
   useEffect(() => {
     return () => {
       if (balanceTipTimer.current) clearTimeout(balanceTipTimer.current);
+      if (completeTimeoutRef.current) clearTimeout(completeTimeoutRef.current);
     };
   }, []);
 
@@ -62,10 +78,10 @@ export default function Home() {
   const today = todayKey();
   const todayCheckIn = checkIns.find((c) => c.date === today);
   const checkedInToday = Boolean(todayCheckIn?.completed);
+  const todayChallenge =
+    personalChallenge?.date === today ? personalChallenge : null;
 
-  const lifeScore = checkedInToday
-    ? todayCheckIn!.score
-    : 0;
+  const lifeScore = checkedInToday ? todayCheckIn!.score : 0;
 
   const tip =
     (checkedInToday
@@ -73,7 +89,6 @@ export default function Home() {
       : 'Check in once a day — mood, sleep, screen, and social battery become your Life Balance score.') ??
     null;
 
-  // Streak strip: left → right fills green as you check in each day (no red "today" bar).
   const streakLen = Math.min(7, Math.max(0, user.currentStreak));
   const streakScores = checkIns
     .filter((c) => c.completed)
@@ -95,6 +110,200 @@ export default function Home() {
       : checkedInToday && todayCheckIn && todayCheckIn.screenTime <= 5
         ? 'text-lighthouse-500'
         : 'text-coral-500';
+
+  const closeChallengeSheet = () => {
+    if (completeTimeoutRef.current) {
+      clearTimeout(completeTimeoutRef.current);
+      completeTimeoutRef.current = null;
+    }
+    setChallengeOpen(false);
+    setShowComplete(false);
+    setProofPreview(null);
+    setProofError(null);
+    setProofBusy(false);
+  };
+
+  const handleProofPicked = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setProofError('Please choose a photo.');
+      return;
+    }
+    setProofBusy(true);
+    setProofError(null);
+    try {
+      const dataUrl = await compressProofPhoto(file);
+      setProofPreview(dataUrl);
+    } catch {
+      setProofError('Could not read that photo. Try another.');
+    } finally {
+      setProofBusy(false);
+      if (proofInputRef.current) proofInputRef.current.value = '';
+    }
+  };
+
+  const handleCompletePersonal = () => {
+    if (!proofPreview || !todayChallenge || todayChallenge.completed) {
+      setProofError('Add a photo to prove you did it.');
+      return;
+    }
+    const ok = completePersonalChallenge(proofPreview);
+    if (!ok) {
+      setProofError('Could not save this challenge.');
+      return;
+    }
+    confetti({
+      particleCount: 70,
+      spread: 65,
+      origin: { y: 0.55 },
+      colors: ['#FFB547', '#FF6B7A', '#34D399', '#FFB27A'],
+    });
+    setShowComplete(true);
+    completeTimeoutRef.current = setTimeout(() => {
+      closeChallengeSheet();
+    }, 1800);
+  };
+
+  const lifeBalanceCard = (
+    <motion.div
+      className="relative rounded-hero glass-strong p-5"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <div className="absolute inset-0 rounded-hero overflow-hidden pointer-events-none" aria-hidden>
+        <div
+          className="absolute -top-20 -right-20 w-60 h-60 rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(30px)' }}
+        />
+        <div
+          className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.35), transparent 70%)', filter: 'blur(30px)' }}
+        />
+      </div>
+      <div className="relative flex items-center gap-4">
+        <div className="relative flex-shrink-0">
+          <div className="absolute inset-0 rounded-full bg-lighthouse-300/30 blur-2xl scale-110 pointer-events-none" />
+          <button
+            type="button"
+            className="relative focus-ring rounded-full"
+            onClick={showBalanceTip}
+            aria-label="What is Life Balance?"
+          >
+            <ScoreRing score={lifeScore} size={140} />
+          </button>
+
+          <AnimatePresence>
+            {balanceTipOpen && (
+              <motion.div
+                className="absolute left-1/2 top-[calc(100%+10px)] z-20 w-56 -translate-x-1/2 pointer-events-none"
+                initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                role="tooltip"
+              >
+                <div
+                  className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-white dark:bg-night-800 border-l border-t border-black/10 dark:border-white/10"
+                  aria-hidden
+                />
+                <div className="relative rounded-2xl bg-white dark:bg-night-800 px-3.5 py-3 shadow-[0_10px_28px_rgba(14,11,8,0.18)] border border-black/10 dark:border-white/10">
+                  <p className="font-display font-bold text-caption text-ink-900 dark:text-ink-100">
+                    Life Balance
+                  </p>
+                  <p className="mt-1 text-[11px] leading-snug text-ink-600 dark:text-ink-300">
+                    Built from today&apos;s four check-in signals — not a mystery number.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-1.5">
+                <TrendingUp size={16} className="text-mint-500 shrink-0" strokeWidth={2.5} />
+                <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                  {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
+                </span>
+              </div>
+              <p className="mt-0.5 text-caption text-ink-600 dark:text-ink-300">
+                achieved!
+              </p>
+            </div>
+
+            <motion.img
+              src="/images/character-2.png"
+              alt=""
+              draggable={false}
+              className="w-[58px] h-auto object-contain shrink-0 -mr-0.5 drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: [0, -3, 0] }}
+              transition={{
+                opacity: { duration: 0.35 },
+                y: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
+              }}
+            />
+          </div>
+
+          <div className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1 rounded-capsule bg-coral-500/10 border border-coral-500/20 whitespace-nowrap">
+            <Flame size={12} className="text-coral-500 shrink-0" fill="currentColor" />
+            <span className="text-caption font-bold text-coral-600 dark:text-coral-300 leading-none">
+              {user.currentStreak}-day streak
+            </span>
+          </div>
+
+          <div className="mt-2.5 flex items-end gap-1.5 h-8">
+            {streakSlots.map((slot, i) => {
+              const h = slot.filled
+                ? Math.max(28, (slot.score / maxStreakScore) * 78)
+                : 16;
+              return (
+                <motion.div
+                  key={i}
+                  className="flex-1 rounded-full"
+                  style={{
+                    background: slot.filled
+                      ? 'linear-gradient(180deg, #34D399, #10B981)'
+                      : 'rgba(14,11,8,0.08)',
+                  }}
+                  initial={{ height: 6 }}
+                  animate={{ height: `${h}%` }}
+                  transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {tip && (
+        <motion.div
+          className="relative mt-4 p-3.5 rounded-card bg-mint-500/10 border border-mint-500/20"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.35 }}
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <img
+              src="/images/lumi.png"
+              alt=""
+              className="w-4 h-4 object-contain shrink-0"
+              draggable={false}
+            />
+            <span className="text-micro uppercase tracking-[0.14em] font-bold text-mint-700 dark:text-mint-300">
+              Tip
+            </span>
+          </div>
+          <p className="text-caption text-ink-900 dark:text-ink-100 leading-relaxed font-medium">
+            {tip}
+          </p>
+        </motion.div>
+      )}
+    </motion.div>
+  );
 
   return (
     <div className="screen-scroll">
@@ -126,23 +335,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Daily check-in CTA */}
-      <div className="px-6 mt-5">
-        {checkedInToday ? (
-          <div className="flex items-center gap-3 p-3.5 rounded-card glass">
-            <div className="w-10 h-10 rounded-full bg-mint-500 flex items-center justify-center shadow-soft">
-              <Check size={20} className="text-white" strokeWidth={3} />
-            </div>
-            <div className="min-w-0">
-              <p className="font-display font-bold text-body text-ink-900 dark:text-ink-100">
-                Checked in today
-              </p>
-              <p className="text-caption text-ink-600 dark:text-ink-300">
-                Life Balance is set from today&apos;s check-in
-              </p>
-            </div>
-          </div>
-        ) : (
+      {/* Before check-in: CTA. After: Life Balance rises into this space. */}
+      {!checkedInToday ? (
+        <div className="px-6 mt-5">
           <motion.button
             type="button"
             className="relative w-full overflow-hidden px-4 py-3.5 rounded-hero hero-glow text-left shadow-medium shine"
@@ -175,151 +370,117 @@ export default function Home() {
               <ArrowRight size={18} className="text-white shrink-0" strokeWidth={2.5} />
             </div>
           </motion.button>
-        )}
+        </div>
+      ) : null}
+
+      <div className="px-6 mt-5">
+        {lifeBalanceCard}
       </div>
 
-      {/* Hero: Life Balance */}
-      <div className="px-6 mt-5">
-        <motion.div
-          className="relative rounded-hero glass-strong p-5"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div className="absolute inset-0 rounded-hero overflow-hidden pointer-events-none" aria-hidden>
-            <div
-              className="absolute -top-20 -right-20 w-60 h-60 rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(255,178,122,0.55), transparent 70%)', filter: 'blur(30px)' }}
-            />
-            <div
-              className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full"
-              style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.35), transparent 70%)', filter: 'blur(30px)' }}
-            />
-          </div>
-          <div className="relative flex items-center gap-4">
-            <div className="relative flex-shrink-0">
-              <div className="absolute inset-0 rounded-full bg-lighthouse-300/30 blur-2xl scale-110 pointer-events-none" />
-              <button
-                type="button"
-                className="relative focus-ring rounded-full"
-                onClick={showBalanceTip}
-                aria-label="What is Life Balance?"
-              >
-                <ScoreRing score={lifeScore} size={140} />
-              </button>
-
-              <AnimatePresence>
-                {balanceTipOpen && (
-                  <motion.div
-                    className="absolute left-1/2 top-[calc(100%+10px)] z-20 w-56 -translate-x-1/2 pointer-events-none"
-                    initial={{ opacity: 0, y: -4, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: 0.96 }}
-                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                    role="tooltip"
-                  >
-                    {/* Caret pointing up at the ring */}
-                    <div
-                      className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-white dark:bg-night-800 border-l border-t border-black/10 dark:border-white/10"
-                      aria-hidden
-                    />
-                    <div className="relative rounded-2xl bg-white dark:bg-night-800 px-3.5 py-3 shadow-[0_10px_28px_rgba(14,11,8,0.18)] border border-black/10 dark:border-white/10">
-                      <p className="font-display font-bold text-caption text-ink-900 dark:text-ink-100">
-                        Life Balance
-                      </p>
-                      <p className="mt-1 text-[11px] leading-snug text-ink-600 dark:text-ink-300">
-                        Built from today&apos;s four check-in signals — not a mystery number.
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+      {/* Personal challenge — only after today’s check-in */}
+      {checkedInToday && todayChallenge && (
+        <div className="px-6 mt-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5">
+              <Target size={15} className="text-lighthouse-600" strokeWidth={2.5} />
+              <h2 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
+                For you today
+              </h2>
             </div>
+            <span className="text-caption font-bold text-lighthouse-600">
+              +{todayChallenge.points} XP
+            </span>
+          </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-baseline gap-1.5">
-                    <TrendingUp size={16} className="text-mint-500 shrink-0" strokeWidth={2.5} />
-                    <span className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
-                      {user.weeklyChange >= 0 ? '+' : ''}{user.weeklyChange}
+          <motion.button
+            type="button"
+            className={`relative w-full overflow-hidden rounded-hero text-left shadow-medium ${
+              todayChallenge.completed ? 'glass-tint-warm' : 'hero-glow shine'
+            }`}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              if (todayChallenge.completed) return;
+              setChallengeOpen(true);
+            }}
+          >
+            {!todayChallenge.completed && (
+              <div
+                className="absolute -top-14 -right-10 w-44 h-44 rounded-full pointer-events-none"
+                style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.28), transparent 70%)', filter: 'blur(22px)' }}
+              />
+            )}
+            <div className="relative p-4 flex items-start gap-3">
+              <div
+                className={`w-11 h-11 rounded-[14px] flex items-center justify-center shrink-0 ${
+                  todayChallenge.completed
+                    ? 'bg-mint-500 shadow-soft'
+                    : 'bg-white/25'
+                }`}
+              >
+                {todayChallenge.completed ? (
+                  <Check size={20} className="text-white" strokeWidth={3} />
+                ) : (
+                  <Sparkles size={18} className="text-white" strokeWidth={2.4} />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`font-display font-bold text-title leading-tight ${
+                    todayChallenge.completed
+                      ? 'text-ink-900 dark:text-ink-100'
+                      : 'text-white'
+                  }`}
+                >
+                  {todayChallenge.title}
+                </p>
+                <p
+                  className={`mt-1 text-caption leading-snug line-clamp-2 ${
+                    todayChallenge.completed
+                      ? 'text-ink-600 dark:text-ink-300'
+                      : 'text-white/90'
+                  }`}
+                >
+                  {todayChallenge.description}
+                </p>
+                <div className="mt-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`px-2 py-0.5 rounded-capsule text-[10px] font-bold capitalize ${
+                        todayChallenge.completed
+                          ? 'bg-ink-100 dark:bg-night-700 text-ink-600 dark:text-ink-300'
+                          : 'bg-white/20 text-white'
+                      }`}
+                    >
+                      {todayChallenge.difficulty}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-capsule text-[10px] font-bold ${
+                        todayChallenge.completed
+                          ? 'bg-ink-100 dark:bg-night-700 text-ink-600 dark:text-ink-300'
+                          : 'bg-white/20 text-white'
+                      }`}
+                    >
+                      {todayChallenge.timeEstimate}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-caption text-ink-600 dark:text-ink-300">
-                    achieved!
-                  </p>
+                  <span
+                    className={`text-[11px] font-bold shrink-0 ${
+                      todayChallenge.completed
+                        ? 'text-mint-600 dark:text-mint-300'
+                        : 'text-white'
+                    }`}
+                  >
+                    {todayChallenge.completed ? 'Done' : 'Tap to start'}
+                  </span>
                 </div>
-
-                <motion.img
-                  src="/images/character-2.png"
-                  alt=""
-                  draggable={false}
-                  className="w-[58px] h-auto object-contain shrink-0 -mr-0.5 drop-shadow-[0_6px_14px_rgba(255,138,61,0.35)]"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: [0, -3, 0] }}
-                  transition={{
-                    opacity: { duration: 0.35 },
-                    y: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
-                  }}
-                />
               </div>
-
-              <div className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1 rounded-capsule bg-coral-500/10 border border-coral-500/20 whitespace-nowrap">
-                <Flame size={12} className="text-coral-500 shrink-0" fill="currentColor" />
-                <span className="text-caption font-bold text-coral-600 dark:text-coral-300 leading-none">
-                  {user.currentStreak}-day streak
-                </span>
-              </div>
-
-              <div className="mt-2.5 flex items-end gap-1.5 h-8">
-                {streakSlots.map((slot, i) => {
-                  const h = slot.filled
-                    ? Math.max(28, (slot.score / maxStreakScore) * 78)
-                    : 16;
-                  return (
-                    <motion.div
-                      key={i}
-                      className="flex-1 rounded-full"
-                      style={{
-                        background: slot.filled
-                          ? 'linear-gradient(180deg, #34D399, #10B981)'
-                          : 'rgba(14,11,8,0.08)',
-                      }}
-                      initial={{ height: 6 }}
-                      animate={{ height: `${h}%` }}
-                      transition={{ delay: 0.12 + i * 0.04, type: 'spring', stiffness: 160, damping: 22 }}
-                    />
-                  );
-                })}
-              </div>
+              {!todayChallenge.completed && (
+                <ArrowRight size={18} className="text-white shrink-0 mt-1" strokeWidth={2.5} />
+              )}
             </div>
-          </div>
-
-          {tip && (
-            <motion.div
-              className="relative mt-4 p-3.5 rounded-card bg-mint-500/10 border border-mint-500/20"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.35 }}
-            >
-              <div className="flex items-center gap-1.5 mb-1">
-                <img
-                  src="/images/lumi.png"
-                  alt=""
-                  className="w-4 h-4 object-contain shrink-0"
-                  draggable={false}
-                />
-                <span className="text-micro uppercase tracking-[0.14em] font-bold text-mint-700 dark:text-mint-300">
-                  AI tip
-                </span>
-              </div>
-              <p className="text-caption text-ink-900 dark:text-ink-100 leading-relaxed font-medium">
-                {tip}
-              </p>
-            </motion.div>
-          )}
-        </motion.div>
-      </div>
+          </motion.button>
+        </div>
+      )}
 
       {/* Today's four signals */}
       <div className="px-6 mt-5">
@@ -378,7 +539,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Weekly insights — only once unlocked */}
       {weeklyUnlocked && weeklyInsight && (
         <div className="px-6 mt-5">
           <motion.button
@@ -392,14 +552,15 @@ export default function Home() {
               style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.4), transparent 70%)', filter: 'blur(24px)' }}
             />
             <div className="relative flex items-start gap-3">
-              <div className="w-11 h-11 rounded-[14px] flex items-center justify-center shadow-soft shrink-0"
+              <div
+                className="w-11 h-11 rounded-[14px] flex items-center justify-center shadow-soft shrink-0"
                 style={{ background: 'linear-gradient(135deg, #A78BFA, #FF6B7A)' }}
               >
                 <FlaskConical size={18} className="text-white" strokeWidth={2.4} />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-micro uppercase tracking-[0.14em] font-bold text-ink-600 dark:text-ink-300">
-                  Weekly AI Insights
+                  Weekly Insights
                 </p>
                 <p className="mt-0.5 font-display font-bold text-title text-ink-900 dark:text-ink-100">
                   {weeklyInsight.experiment.title}
@@ -414,7 +575,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Lumi guide */}
       <div className="px-6 mt-5 mb-2">
         <div className="px-3 py-2.5 rounded-card glass flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full hero-glow flex items-center justify-center shadow-soft shrink-0">
@@ -456,6 +616,133 @@ export default function Home() {
         onClose={() => setWeeklyOpen(false)}
         insight={weeklyInsight}
       />
+
+      <BottomSheet
+        isOpen={challengeOpen && Boolean(todayChallenge) && !todayChallenge?.completed}
+        onClose={closeChallengeSheet}
+        title={todayChallenge?.title}
+      >
+        {todayChallenge && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`text-micro uppercase tracking-wider font-bold ${
+                  todayChallenge.difficulty === 'easy'
+                    ? 'text-mint-500'
+                    : todayChallenge.difficulty === 'medium'
+                      ? 'text-lighthouse-500'
+                      : 'text-coral-500'
+                }`}
+              >
+                {todayChallenge.difficulty}
+              </span>
+              <span className="text-caption text-ink-300">{todayChallenge.timeEstimate}</span>
+              <span className="text-caption text-lighthouse-500 font-bold">
+                +{todayChallenge.points} XP
+              </span>
+            </div>
+            <p className="text-body text-ink-600 dark:text-ink-300 selectable">
+              {todayChallenge.instructions}
+            </p>
+
+            <input
+              ref={proofInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleProofPicked(e.target.files?.[0] ?? null)}
+            />
+
+            <AnimatePresence mode="wait">
+              {showComplete ? (
+                <motion.div
+                  key="done"
+                  className="text-center py-6"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <Lumi pose="cheering" size={80} />
+                  <p className="mt-3 font-display font-bold text-title text-mint-700 dark:text-mint-300">
+                    Amazing work! {'\u{1F31F}'}
+                  </p>
+                  <p className="mt-1 font-display font-bold text-body text-lighthouse-600">
+                    +{todayChallenge.points} XP
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="proof"
+                  className="space-y-3"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <div>
+                    <p className="text-micro uppercase tracking-[0.14em] font-bold text-ink-600 dark:text-ink-300 mb-2">
+                      Proof photo
+                    </p>
+                    {proofPreview ? (
+                      <div className="relative overflow-hidden rounded-hero">
+                        <img
+                          src={proofPreview}
+                          alt="Challenge proof"
+                          className="w-full max-h-56 object-cover"
+                        />
+                        <button
+                          type="button"
+                          className="absolute top-3 right-3 w-9 h-9 rounded-full glass-strong flex items-center justify-center"
+                          onClick={() => setProofPreview(null)}
+                          aria-label="Remove photo"
+                        >
+                          <X size={16} className="text-ink-900 dark:text-ink-100" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full p-5 rounded-hero glass border border-dashed border-ink-200 dark:border-night-500 text-center"
+                        onClick={() => proofInputRef.current?.click()}
+                        disabled={proofBusy}
+                      >
+                        <div className="mx-auto w-11 h-11 rounded-full hero-glow shadow-soft flex items-center justify-center mb-2">
+                          {proofBusy ? (
+                            <Camera size={18} className="text-white animate-pulse" />
+                          ) : (
+                            <ImagePlus size={18} className="text-white" />
+                          )}
+                        </div>
+                        <p className="font-display font-bold text-title text-ink-900 dark:text-ink-100">
+                          {proofBusy ? 'Preparing photo…' : 'Add a photo'}
+                        </p>
+                        <p className="mt-1 text-caption text-ink-300">
+                          Snap or pick a pic that shows you did this.
+                        </p>
+                      </button>
+                    )}
+                    {proofError && (
+                      <p className="mt-2 text-caption text-coral-500 font-semibold">{proofError}</p>
+                    )}
+                  </div>
+
+                  <motion.button
+                    className={`w-full py-4 rounded-capsule font-display font-bold text-title shadow-medium ${
+                      proofPreview
+                        ? 'hero-glow text-white'
+                        : 'glass text-ink-300 cursor-not-allowed'
+                    }`}
+                    whileTap={proofPreview ? { scale: 0.97 } : undefined}
+                    disabled={!proofPreview || proofBusy}
+                    onClick={handleCompletePersonal}
+                  >
+                    Done! {'\u2728'}
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }

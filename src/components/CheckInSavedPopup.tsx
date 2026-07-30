@@ -15,12 +15,13 @@ export default function CheckInSavedPopup({ isOpen, onClose, score }: Props) {
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* Blocks the page — does not dismiss */}
           <motion.div
-            className="fixed inset-0 z-[70] bg-black/35"
+            className="fixed inset-0 z-[70] bg-black/40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            aria-hidden
           />
           <motion.div
             className="fixed inset-0 z-[71] flex items-center justify-center px-6 pointer-events-none"
@@ -32,7 +33,7 @@ export default function CheckInSavedPopup({ isOpen, onClose, score }: Props) {
               role="dialog"
               aria-modal="true"
               aria-labelledby="check-in-saved-title"
-              className="pointer-events-auto relative w-full max-w-[320px] rounded-hero glass-strong p-6 text-center shadow-medium"
+              className="pointer-events-auto relative w-full max-w-[300px] rounded-hero glass-strong p-6 pt-7 text-center shadow-medium"
               initial={{ scale: 0.92, y: 12, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.96, y: 8, opacity: 0 }}
@@ -68,15 +69,6 @@ export default function CheckInSavedPopup({ isOpen, onClose, score }: Props) {
                   '.'
                 )}
               </p>
-
-              <motion.button
-                type="button"
-                className="mt-5 w-full py-3 rounded-capsule hero-glow text-white font-display font-bold text-caption shadow-soft"
-                whileTap={{ scale: 0.97 }}
-                onClick={onClose}
-              >
-                Got it
-              </motion.button>
             </motion.div>
           </motion.div>
         </>
