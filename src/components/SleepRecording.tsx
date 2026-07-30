@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Moon, Sun, Check, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Moon, Sun, Check, ArrowLeft } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { SLEEP_GOAL_HOURS } from '../lib/mockData';
@@ -11,9 +11,6 @@ interface SleepRecordingProps {
   onClose: () => void;
   onCompleted?: (hours: number) => void;
 }
-
-const DEFAULT_BEDTIME = '10:30 PM';
-const DEFAULT_WAKE = '6:30 AM';
 
 function formatElapsed(ms: number): string {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -214,7 +211,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
 
               {/* Sleep goal card */}
               <motion.div
-                className="relative mt-4 overflow-hidden rounded-hero glass-strong px-4 pt-4 pb-3.5 text-center"
+                className="relative mt-4 overflow-hidden rounded-hero glass-strong px-4 pt-5 pb-5 text-center"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
               >
@@ -224,14 +221,23 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                 />
 
                 <div className="relative z-[1]">
-                  {/* Art already includes “Sleep goal / 8 hours” — keep native sharpness */}
-                  <div className="flex w-full items-center justify-center">
+                  <div className="relative flex w-full items-center justify-center py-1">
+                    {/* Soft warm glow behind the character */}
+                    <div
+                      className="absolute left-1/2 top-[40%] h-32 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
+                      style={{
+                        background:
+                          'radial-gradient(ellipse at center, rgba(255,178,122,0.5) 0%, rgba(255,122,69,0.2) 42%, transparent 70%)',
+                      }}
+                      aria-hidden
+                    />
+                    {/* multiply makes the white plate vanish into the card surface */}
                     <img
-                      src="/images/sleeping-fireguy.png"
+                      src="/images/sleeping-fireguy.png?v=4"
                       alt={`Sleep goal ${SLEEP_GOAL_HOURS} hours`}
                       width={390}
                       height={370}
-                      className="h-auto w-auto max-w-full object-contain object-center pointer-events-none select-none"
+                      className="relative z-[1] h-auto w-auto max-w-full object-contain object-center pointer-events-none select-none mix-blend-multiply"
                       style={{ maxWidth: 'min(100%, 195px)' }}
                       draggable={false}
                     />
@@ -241,7 +247,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                     {goalReached ? (
                       <motion.div
                         key="goal-reached"
-                        className="mt-2"
+                        className="mt-1"
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
@@ -256,7 +262,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                     ) : timerCovered ? (
                       <motion.div
                         key="rest-easy"
-                        className="mt-2 px-1"
+                        className="mt-1 px-1"
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
@@ -270,43 +276,6 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                       </motion.div>
                     ) : null}
                   </AnimatePresence>
-
-                  <div className="mt-3.5 pt-3 border-t border-ink-100/80 dark:border-white/10 flex items-center gap-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span className="w-6 h-6 rounded-full hero-glow shadow-soft flex items-center justify-center shrink-0">
-                        <Moon size={12} className="text-white" />
-                      </span>
-                      <div className="min-w-0 text-left">
-                        <p className="text-[9px] font-bold uppercase tracking-wide text-ink-300 leading-none">
-                          Bedtime
-                        </p>
-                        <p className="mt-0.5 text-[12px] font-bold text-ink-900 dark:text-ink-100 tabular-nums truncate">
-                          {sleeping && sleepSession
-                            ? new Date(sleepSession.startedAt).toLocaleTimeString(undefined, {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                              })
-                            : DEFAULT_BEDTIME}
-                        </p>
-                      </div>
-                    </div>
-
-                    <ArrowRight size={12} className="text-lighthouse-500 shrink-0" strokeWidth={2.5} />
-
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
-                      <span className="w-6 h-6 rounded-full bg-[#FFB547] shadow-soft flex items-center justify-center shrink-0">
-                        <Sun size={12} className="text-white" />
-                      </span>
-                      <div className="min-w-0 text-left">
-                        <p className="text-[9px] font-bold uppercase tracking-wide text-ink-300 leading-none">
-                          Wake up
-                        </p>
-                        <p className="mt-0.5 text-[12px] font-bold text-ink-900 dark:text-ink-100 tabular-nums truncate">
-                          {DEFAULT_WAKE}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </motion.div>
 
