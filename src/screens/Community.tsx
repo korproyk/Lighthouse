@@ -245,9 +245,7 @@ const symptomColors: Record<string, string> = {
   Other: '#63C5B2',
 };
 
-/** Digital = screen/online strain. Physical = body symptoms (often more serious locally). */
 type HealthDomain = 'digital' | 'physical';
-type DomainFilterKey = 'all' | HealthDomain;
 
 const symptomDomain: Record<string, HealthDomain> = {
   Doomscrolling: 'digital',
@@ -265,8 +263,7 @@ function domainOf(symptom: string): HealthDomain {
   return symptomDomain[symptom] ?? 'digital';
 }
 
-const domainFilters: { key: DomainFilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
+const domainFilters: { key: HealthDomain; label: string }[] = [
   { key: 'digital', label: 'Digital' },
   { key: 'physical', label: 'Physical' },
 ];
@@ -365,7 +362,7 @@ function MapView() {
   const [loading, setLoading] = useState(true);
   const [showCheckInSheet, setShowCheckInSheet] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
-  const [domainFilter, setDomainFilter] = useState<DomainFilterKey>('all');
+  const [domainFilter, setDomainFilter] = useState<HealthDomain>('digital');
   const [alertFilter, setAlertFilter] = useState<AlertFilterKey>('all');
   const [query, setQuery] = useState('');
   const [radiusKm, setRadiusKm] = useState(0);
@@ -426,7 +423,7 @@ function MapView() {
   const visibleCheckIns = useMemo(
     () =>
       checkIns.filter((c) => {
-        if (domainFilter !== 'all' && domainOf(c.symptom) !== domainFilter) return false;
+        if (domainOf(c.symptom) !== domainFilter) return false;
         if (alertFilter !== 'all' && c.alert !== alertFilter) return false;
         return true;
       }),
@@ -538,23 +535,25 @@ function MapView() {
 
   return (
     <div className="mt-4">
-      {/* Digital / Physical — physical can be more urgent in some places */}
-      <div className="px-6 flex gap-2 overflow-x-auto scrollbar-none mb-3">
-        {domainFilters.map((f) => {
-          const active = domainFilter === f.key;
-          return (
-            <motion.button
-              key={f.key}
-              className={`whitespace-nowrap px-4 py-1.5 rounded-capsule text-caption font-bold ${
-                active ? 'hero-glow text-white shadow-soft' : 'glass text-ink-700 dark:text-ink-200'
-              }`}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setDomainFilter(f.key)}
-            >
-              {f.label}
-            </motion.button>
-          );
-        })}
+      {/* Digital / Physical — equal split */}
+      <div className="px-6 mb-3">
+        <div className="p-1 rounded-capsule glass flex gap-1">
+          {domainFilters.map((f) => {
+            const active = domainFilter === f.key;
+            return (
+              <motion.button
+                key={f.key}
+                className={`flex-1 py-2 rounded-capsule text-caption font-bold text-center ${
+                  active ? 'hero-glow text-white shadow-soft' : 'text-ink-600 dark:text-ink-300'
+                }`}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setDomainFilter(f.key)}
+              >
+                {f.label}
+              </motion.button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Search + filters */}
