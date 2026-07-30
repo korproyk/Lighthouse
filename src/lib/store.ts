@@ -70,6 +70,8 @@ interface AppState {
   personalChallenge: PersonalChallenge | null;
   /** Ephemeral — shown globally when XP crosses a tier threshold. */
   tierUpCelebration: TierUpCelebrationState | null;
+  /** Tracks which RESET ALL TIERS! wipe has been applied. */
+  tierProgressEpoch: number;
 
   setOnboarded: () => void;
   toggleDarkMode: () => void;
@@ -114,6 +116,45 @@ interface AppState {
 
 function accountKey(nickname: string): string {
   return nickname.trim().toLowerCase();
+}
+
+/**
+ * Bumped only on explicit `RESET ALL TIERS!`.
+ * Merge checks this every hydrate so the wipe can't be skipped.
+ */
+export const TIER_PROGRESS_EPOCH = 1;
+
+function wipeUserChallengeProgress<
+  T extends {
+    totalChallenges?: number;
+    xp?: number;
+    tier?: string;
+    tierProgress?: number;
+    currentScore?: number;
+  },
+>(user: T | undefined, wipeLifeBalanceScore = false): T | undefined {
+  if (!user) return user;
+  return {
+    ...user,
+    totalChallenges: 0,
+    xp: 0,
+    tier: 'spark',
+    tierProgress: 0,
+    ...(wipeLifeBalanceScore ? { currentScore: 0 } : {}),
+  };
+}
+
+function resetPersonalChallenge(
+  challenge: PersonalChallenge | null | undefined
+): PersonalChallenge | null {
+  if (!challenge) return null;
+  if (!challenge.completed && !challenge.proofDataUrl) return challenge;
+  return {
+    ...challenge,
+    completed: false,
+    completedAt: undefined,
+    proofDataUrl: undefined,
+  };
 }
 
 /** Keep completion from saved progress, but always include new seed quests
@@ -162,6 +203,7 @@ export const useStore = create<AppState>()(
       lastWeeklyInsightAt: null,
       personalChallenge: null,
       tierUpCelebration: null,
+      tierProgressEpoch: TIER_PROGRESS_EPOCH,
 
       setOnboarded: () => set({ hasOnboarded: true }),
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
@@ -593,71 +635,34 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'lighthouse-storage',
-      // v3 → v4: RESET ALL TIERS! — wipe challenge XP / tiers / completions again.
-      // Life Balance check-ins are left alone.
-      version: 4,
+      // Keep bumping with RESET ALL TIERS!; merge also enforces TIER_PROGRESS_EPOCH.
+      version: 5,
       migrate: async (persisted, fromVersion) => {
         const state = (persisted ?? {}) as Partial<AppState>;
-        if (fromVersion >= 4) return state;
+        // Always return state — the real wipe is enforced in merge via epoch.
+        if (fromVersion >= 5) return state;
 
-        const wipeChallengeProgress = <
-          T extends {
-            totalChallenges?: number;
-            xp?: number;
-            tier?: string;
-            tierProgress?: number;
-          },
-        >(
-          user: T | undefined
-        ): T | undefined =>
-          user
-            ? {
-                ...user,
-                totalChallenges: 0,
-                xp: 0,
-                tier: 'spark',
-                tierProgress: 0,
-              }
-            : user;
-
-        // Older v0/v1 installs still need the Life Balance score wipe.
-        const wipeLegacyScore = <T extends { currentScore?: number }>(
-          user: T | undefined
-        ): T | undefined =>
-          fromVersion < 2 && user
-            ? { ...user, currentScore: 0 }
-            : user;
-
+        const wipeLifeBalance = fromVersion < 2;
         const wipeAccount = (account: Account): Account => ({
           ...account,
           user:
-            wipeChallengeProgress(wipeLegacyScore(account.user)) ?? account.user,
+            wipeUserChallengeProgress(account.user, wipeLifeBalance) ??
+            account.user,
           challenges: resetAllChallengeProgress(
             mergeChallengeCatalog(account.challenges, challenges)
           ),
         });
 
-        const personal =
-          state.personalChallenge && !state.personalChallenge.completed
-            ? state.personalChallenge
-            : state.personalChallenge
-              ? {
-                  ...state.personalChallenge,
-                  completed: false,
-                  completedAt: undefined,
-                  proofDataUrl: undefined,
-                }
-              : null;
-
         return {
           ...state,
           user:
-            wipeChallengeProgress(wipeLegacyScore(state.user)) ?? state.user,
+            wipeUserChallengeProgress(state.user, wipeLifeBalance) ?? state.user,
           challenges: resetAllChallengeProgress(
             mergeChallengeCatalog(state.challenges, challenges)
           ),
-          personalChallenge: personal,
+          personalChallenge: resetPersonalChallenge(state.personalChallenge),
           tierUpCelebration: null,
+          tierProgressEpoch: TIER_PROGRESS_EPOCH,
           accounts: Object.fromEntries(
             Object.entries(state.accounts ?? {}).map(([key, account]) => [
               key,
@@ -668,7 +673,9 @@ export const useStore = create<AppState>()(
       },
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;
-        const normalizeUser = <T extends typeof userProfile>(user: T | undefined): T | undefined => {
+        const normalizeUser = <T extends typeof userProfile>(
+          user: T | undefined
+        ): T | undefined => {
           if (!user) return user;
           const xp = typeof user.xp === 'number' ? user.xp : 0;
           const tier = tierFromXp(xp);
@@ -679,22 +686,55 @@ export const useStore = create<AppState>()(
             tierProgress: tierProgressPercent(xp),
           };
         };
-        return {
-          ...current,
-          ...p,
-          user: normalizeUser(p.user as typeof userProfile) ?? current.user,
-          // Always re-apply the 2-week redo window on hydrate.
-          challenges: mergeChallengeCatalog(p.challenges, challenges),
-          accounts: Object.fromEntries(
-            Object.entries(p.accounts ?? current.accounts).map(([key, account]) => [
+
+        const storedEpoch =
+          typeof (p as { tierProgressEpoch?: number }).tierProgressEpoch ===
+          'number'
+            ? (p as { tierProgressEpoch: number }).tierProgressEpoch
+            : 0;
+        const needsTierWipe = storedEpoch < TIER_PROGRESS_EPOCH;
+
+        let nextUser =
+          normalizeUser(p.user as typeof userProfile) ?? current.user;
+        let nextChallenges = mergeChallengeCatalog(p.challenges, challenges);
+        let nextPersonal = (p.personalChallenge ??
+          current.personalChallenge) as PersonalChallenge | null;
+        let nextAccounts = Object.fromEntries(
+          Object.entries(p.accounts ?? current.accounts).map(([key, account]) => [
+            key,
+            {
+              ...account,
+              user: normalizeUser(account.user) ?? account.user,
+              challenges: mergeChallengeCatalog(account.challenges, challenges),
+            },
+          ])
+        );
+
+        if (needsTierWipe) {
+          nextUser = wipeUserChallengeProgress(nextUser) ?? nextUser;
+          nextChallenges = resetAllChallengeProgress(nextChallenges);
+          nextPersonal = resetPersonalChallenge(nextPersonal);
+          nextAccounts = Object.fromEntries(
+            Object.entries(nextAccounts).map(([key, account]) => [
               key,
               {
                 ...account,
-                user: normalizeUser(account.user) ?? account.user,
-                challenges: mergeChallengeCatalog(account.challenges, challenges),
+                user: wipeUserChallengeProgress(account.user) ?? account.user,
+                challenges: resetAllChallengeProgress(account.challenges),
               },
             ])
-          ),
+          );
+        }
+
+        return {
+          ...current,
+          ...p,
+          user: nextUser,
+          challenges: nextChallenges,
+          personalChallenge: nextPersonal,
+          tierUpCelebration: needsTierWipe ? null : current.tierUpCelebration,
+          tierProgressEpoch: TIER_PROGRESS_EPOCH,
+          accounts: nextAccounts,
         };
       },
       partialize: (state) => ({
@@ -715,6 +755,7 @@ export const useStore = create<AppState>()(
         weeklyInsight: state.weeklyInsight,
         lastWeeklyInsightAt: state.lastWeeklyInsightAt,
         personalChallenge: state.personalChallenge,
+        tierProgressEpoch: state.tierProgressEpoch,
       }),
     }
   )
