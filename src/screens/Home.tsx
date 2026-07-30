@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Flame, Battery, Moon, Smartphone, TrendingUp, Sparkles,
   ArrowRight, ClipboardCheck, FlaskConical, Check, Camera, ImagePlus, X, Target,
+  Lock,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
@@ -43,8 +44,7 @@ export default function Home() {
   } = useStore();
 
   const [checkInOpen, setCheckInOpen] = useState(false);
-  const [savedPopupOpen, setSavedPopupOpen] = useState(false);
-  const [savedScore, setSavedScore] = useState<number | undefined>();
+  const [savedToastOpen, setSavedToastOpen] = useState(false);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [balanceTipOpen, setBalanceTipOpen] = useState(false);
   const [challengeOpen, setChallengeOpen] = useState(false);
@@ -181,6 +181,7 @@ export default function Home() {
           style={{ background: 'radial-gradient(circle, rgba(255,77,106,0.35), transparent 70%)', filter: 'blur(30px)' }}
         />
       </div>
+
       <div className="relative flex items-center gap-4">
         <div className="relative flex-shrink-0">
           <div className="absolute inset-0 rounded-full bg-lighthouse-300/30 blur-2xl scale-110 pointer-events-none" />
@@ -255,6 +256,17 @@ export default function Home() {
             </span>
           </div>
 
+          {checkedInToday && (
+            <div className="mt-1 flex items-center justify-center gap-1">
+              <span className="w-3 h-3 rounded-full border border-mint-500 flex items-center justify-center shrink-0">
+                <Check size={7} className="text-mint-500" strokeWidth={3.5} />
+              </span>
+              <span className="text-micro text-ink-600 dark:text-ink-300 leading-none whitespace-nowrap">
+                Updated today
+              </span>
+            </div>
+          )}
+
           <div className="mt-2.5 flex items-end gap-1.5 h-8">
             {streakSlots.map((slot, i) => {
               const h = slot.filled
@@ -300,6 +312,24 @@ export default function Home() {
           <p className="text-caption text-ink-900 dark:text-ink-100 leading-relaxed font-medium">
             {tip}
           </p>
+          {!weeklyUnlocked && (
+            <>
+              <div
+                className="mt-3 mb-2.5 border-t border-ink-100/80 dark:border-white/10"
+                aria-hidden
+              />
+              <div className="flex items-center gap-1 min-w-0">
+                <Lock
+                  size={10}
+                  className="text-ink-600 dark:text-ink-300 shrink-0"
+                  strokeWidth={2}
+                />
+                <span className="text-micro font-normal tracking-normal text-ink-600 dark:text-ink-300 leading-none whitespace-nowrap">
+                  Complete 7 days of check-ins to unlock Weekly AI Insights.
+                </span>
+              </div>
+            </>
+          )}
         </motion.div>
       )}
     </motion.div>
@@ -592,8 +622,7 @@ export default function Home() {
         isOpen={checkInOpen}
         onClose={() => setCheckInOpen(false)}
         onFinished={(out) => {
-          setSavedScore(out.score);
-          setSavedPopupOpen(true);
+          setSavedToastOpen(true);
           if (out.weeklyReady) {
             pendingWeekly.current = true;
             ensureWeeklyInsight();
@@ -601,10 +630,9 @@ export default function Home() {
         }}
       />
       <CheckInSavedPopup
-        isOpen={savedPopupOpen}
-        score={savedScore}
+        isOpen={savedToastOpen}
         onClose={() => {
-          setSavedPopupOpen(false);
+          setSavedToastOpen(false);
           if (pendingWeekly.current) {
             pendingWeekly.current = false;
             setWeeklyOpen(true);
