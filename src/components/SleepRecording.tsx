@@ -302,7 +302,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                 </span>
               </button>
 
-              {/* Bedtime / Wake — size swap kept; no chevrons */}
+              {/* Bedtime / Wake — primary left-aligned & vertically centered; secondary centered */}
               <div className="mt-3.5 flex gap-2.5 items-stretch min-h-[5.5rem]">
                 <motion.button
                   type="button"
@@ -318,10 +318,10 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                   whileTap={sleeping ? undefined : { scale: 0.98 }}
                 >
                   <div
-                    className={`relative h-full flex ${
+                    className={`relative h-full box-border flex ${
                       sleeping
-                        ? 'flex-col items-center justify-center px-1.5 py-2.5'
-                        : 'flex-col justify-center px-3 py-3'
+                        ? 'flex-col items-center justify-center px-2.5 py-3'
+                        : 'flex-col items-start justify-center px-3.5 py-3.5'
                     }`}
                   >
                     <div
@@ -347,7 +347,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                           Start Bedtime
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-600 dark:text-ink-300 leading-snug">
-                          {bedTap === 1 ? 'Tap again to confirm' : 'Click twice to confirm'}
+                          {bedTap === 1 ? 'Tap again to confirm' : 'Double-tap to confirm'}
                         </p>
                         <ConfirmDots taps={bedTap} activeColor="#FF7A45" />
                       </>
@@ -361,10 +361,10 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                   transition={{ layout: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
                   onClick={handleWakeTap}
                   disabled={!sleeping}
-                  className={`relative overflow-hidden rounded-[1.25rem] text-left ${
+                  className={`relative overflow-hidden rounded-[1.25rem] ${
                     !sleeping
-                      ? 'w-[28%] glass opacity-55'
-                      : 'flex-1'
+                      ? 'w-[28%] glass opacity-55 text-center'
+                      : 'flex-1 text-left'
                   }`}
                   style={
                     sleeping
@@ -379,10 +379,10 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                   whileTap={sleeping ? { scale: 0.98 } : undefined}
                 >
                   <div
-                    className={`relative h-full flex ${
+                    className={`relative h-full box-border flex ${
                       !sleeping
-                        ? 'flex-col items-center justify-center px-1.5 py-2.5'
-                        : 'flex-col justify-center px-3 py-3'
+                        ? 'flex-col items-center justify-center px-2.5 py-3'
+                        : 'flex-col items-start justify-center px-3.5 py-3.5'
                     }`}
                   >
                     <div
@@ -408,7 +408,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                           Are U Awake?
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-600 dark:text-ink-300 leading-snug">
-                          {wakeTap === 1 ? 'Tap again to confirm' : 'Click twice to confirm'}
+                          {wakeTap === 1 ? 'Tap again to confirm' : 'Double-tap to confirm'}
                         </p>
                         <ConfirmDots taps={wakeTap} activeColor="#FFB547" />
                       </>
