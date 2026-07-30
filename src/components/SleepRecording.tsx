@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Moon, Sun, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Moon, Sun, Check, ArrowLeft, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useStore } from '../lib/store';
 import { SLEEP_GOAL_HOURS } from '../lib/mockData';
@@ -73,15 +73,15 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
   } = useStore();
 
   const [now, setNow] = useState(Date.now());
-  /** Must pick Yes/No before bedtime. Locked once sleep starts. */
-  const [minus20, setMinus20] = useState<boolean | null>(null);
+  /** Chosen before bedtime; locked once sleep starts (same check UI as before). */
+  const [minus20, setMinus20] = useState(true);
   const [bedTap, setBedTap] = useState(0);
   const [wakeTap, setWakeTap] = useState(0);
   const bedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sleeping = Boolean(sleepSession);
-  const lockedMinus20 = sleeping ? Boolean(sleepSession?.minus20) : minus20;
+  const displayMinus20 = sleeping ? Boolean(sleepSession?.minus20) : minus20;
 
   useEffect(() => {
     if (!isOpen || !sleepSession) return;
@@ -101,7 +101,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
     if (sleepSession) {
       setMinus20(Boolean(sleepSession.minus20));
     } else {
-      setMinus20(null);
+      setMinus20(true);
     }
   }, [isOpen, sleeping, sleepSession]);
 
@@ -109,10 +109,8 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
   const goalMs = SLEEP_GOAL_HOURS * 3_600_000;
   const timerCovered = sleeping && elapsedMs < goalMs;
   const goalReached = sleeping && elapsedMs >= goalMs;
-  const canStartBedtime = !sleeping && minus20 !== null;
 
   const confirmBedtime = () => {
-    if (minus20 === null) return;
     startSleepSession(minus20);
     setNow(Date.now());
     setBedTap(0);
@@ -136,7 +134,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
   };
 
   const handleBedtimeTap = () => {
-    if (!canStartBedtime) return;
+    if (sleeping) return;
     const next = bedTap + 1;
     setBedTap(next);
     setWakeTap(0);
@@ -226,10 +224,11 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                 />
 
                 <div className="relative z-[1]">
+                  {/* Art already includes “Sleep goal / 8 hours” — no duplicate text */}
                   <img
                     src="/images/sleeping-fireguy.png"
-                    alt=""
-                    className="mx-auto w-[7.5rem] h-auto object-contain pointer-events-none select-none"
+                    alt={`Sleep goal ${SLEEP_GOAL_HOURS} hours`}
+                    className="mx-auto w-[11.5rem] h-auto object-contain pointer-events-none select-none"
                     draggable={false}
                   />
 
@@ -264,22 +263,7 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                           Timer stays covered until {SLEEP_GOAL_HOURS} hours.
                         </p>
                       </motion.div>
-                    ) : (
-                      <motion.div
-                        key="sleep-goal"
-                        className="mt-2"
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                      >
-                        <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-ink-300">
-                          Sleep goal
-                        </p>
-                        <p className="mt-1 font-display font-bold text-[1.85rem] leading-none tracking-tight text-lighthouse-600 dark:text-lighthouse-300">
-                          {SLEEP_GOAL_HOURS} hours
-                        </p>
-                      </motion.div>
-                    )}
+                    ) : null}
                   </AnimatePresence>
 
                   <div className="mt-3.5 pt-3 border-t border-ink-100/80 dark:border-white/10 flex items-center gap-1.5">
@@ -321,43 +305,28 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                 </div>
               </motion.div>
 
-              {/* −20 min — choose before sleep; locked after bedtime */}
-              <div className={`mt-3.5 rounded-card glass px-3.5 py-3 ${sleeping ? 'opacity-80' : ''}`}>
-                <p className="text-[12px] font-semibold text-ink-900 dark:text-ink-100 leading-snug">
-                  Minus 20 minutes for a more accurate result?
-                </p>
-                <p className="mt-0.5 text-[11px] text-ink-300 leading-snug">
-                  {sleeping
-                    ? 'Locked for this night — chosen before bedtime.'
-                    : 'Pick one before you start bedtime.'}
-                </p>
-                <div className="mt-2.5 flex gap-2">
-                  <button
-                    type="button"
-                    disabled={sleeping}
-                    onClick={() => !sleeping && setMinus20(true)}
-                    className={`flex-1 py-2 rounded-capsule text-[12px] font-bold transition-colors ${
-                      lockedMinus20 === true
-                        ? 'hero-glow text-white shadow-soft'
-                        : 'glass-strong text-ink-600 dark:text-ink-300'
-                    } ${sleeping ? 'pointer-events-none' : ''}`}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    type="button"
-                    disabled={sleeping}
-                    onClick={() => !sleeping && setMinus20(false)}
-                    className={`flex-1 py-2 rounded-capsule text-[12px] font-bold transition-colors ${
-                      lockedMinus20 === false
-                        ? 'hero-glow text-white shadow-soft'
-                        : 'glass-strong text-ink-600 dark:text-ink-300'
-                    } ${sleeping ? 'pointer-events-none' : ''}`}
-                  >
-                    No
-                  </button>
-                </div>
-              </div>
+              {/* −20 min — same check UI; only lockable after bedtime starts */}
+              <button
+                type="button"
+                disabled={sleeping}
+                className={`mt-3.5 flex items-center gap-3 px-3.5 py-3 rounded-card glass text-left w-full ${
+                  sleeping ? 'opacity-70' : ''
+                }`}
+                onClick={() => {
+                  if (!sleeping) setMinus20((v) => !v);
+                }}
+              >
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                    displayMinus20 ? 'hero-glow' : 'bg-ink-100 dark:bg-night-700'
+                  }`}
+                >
+                  {displayMinus20 && <Check size={13} className="text-white" strokeWidth={3} />}
+                </span>
+                <span className="text-caption text-ink-600 dark:text-ink-300 leading-snug">
+                  Minus 20 minutes for a more accurate result
+                </span>
+              </button>
 
               {/* Bedtime / Wake — size swap kept; no chevrons */}
               <div className="mt-3.5 flex gap-2.5 items-stretch min-h-[5.5rem]">
@@ -366,13 +335,13 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                   layout
                   transition={{ layout: { duration: 0.32, ease: [0.22, 1, 0.36, 1] } }}
                   onClick={handleBedtimeTap}
-                  disabled={!canStartBedtime}
+                  disabled={sleeping}
                   className={`relative overflow-hidden rounded-[1.25rem] text-left ${
                     sleeping
                       ? 'w-[28%] glass opacity-55'
-                      : `flex-1 glass-tint-warm ${minus20 === null ? 'opacity-50' : ''}`
+                      : 'flex-1 glass-tint-warm'
                   }`}
-                  whileTap={canStartBedtime ? { scale: 0.98 } : undefined}
+                  whileTap={sleeping ? undefined : { scale: 0.98 }}
                 >
                   <div
                     className={`relative h-full flex ${
@@ -404,15 +373,9 @@ export default function SleepRecording({ isOpen, onClose, onCompleted }: SleepRe
                           Start Bedtime
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-600 dark:text-ink-300 leading-snug">
-                          {minus20 === null
-                            ? 'Choose Yes or No above first'
-                            : bedTap === 1
-                              ? 'Tap again to confirm'
-                              : 'Click twice to confirm'}
+                          {bedTap === 1 ? 'Tap again to confirm' : 'Click twice to confirm'}
                         </p>
-                        {minus20 !== null && (
-                          <ConfirmDots taps={bedTap} activeColor="#FF7A45" />
-                        )}
+                        <ConfirmDots taps={bedTap} activeColor="#FF7A45" />
                       </>
                     )}
                   </div>
