@@ -384,7 +384,7 @@ export default function Home() {
             <div className="flex items-center gap-1.5">
               <Target size={15} className="text-lighthouse-600" strokeWidth={2.5} />
               <h2 className="font-display font-bold text-title text-ink-900 dark:text-ink-100 tracking-tight">
-                For you today
+                Today&apos;s Challenge
               </h2>
             </div>
             <span className="text-caption font-bold text-lighthouse-600">
