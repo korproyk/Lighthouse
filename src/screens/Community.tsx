@@ -269,16 +269,6 @@ function alertMeta(level: AlertLevel) {
   return alertLevels.find((a) => a.key === level) ?? alertLevels[0];
 }
 
-const mapFilters: { key: MapFilterKey; label: string; color: string; emoji?: string }[] = [
-  { key: 'all', label: 'All', color: '#FF7A45' },
-  ...alertLevels.map((a) => ({
-    key: a.key as MapFilterKey,
-    label: a.label,
-    color: a.color,
-    emoji: a.emoji,
-  })),
-];
-
 // Simple filled-circle glyph inside the pin head
 const alertPinGlyph =
   '<circle cx="12" cy="12" r="6.5" fill="#FFFFFF" stroke="none"/>';
@@ -512,26 +502,6 @@ function MapView() {
 
   return (
     <div className="mt-4">
-      {/* Alert-level chips */}
-      <div className="px-6 flex gap-2 overflow-x-auto scrollbar-none mb-3">
-        {mapFilters.map((f) => {
-          const active = filter === f.key;
-          return (
-            <motion.button
-              key={f.key}
-              className={`whitespace-nowrap py-1.5 rounded-capsule text-caption font-bold flex items-center gap-1.5 ${
-                f.emoji ? 'pl-2 pr-3.5' : 'px-4'
-              } ${active ? 'hero-glow text-white shadow-soft' : 'glass text-ink-700 dark:text-ink-200'}`}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.emoji && <span className="text-[13px] leading-none">{f.emoji}</span>}
-              {f.label}
-            </motion.button>
-          );
-        })}
-      </div>
-
       {/* Search + filters */}
       <div className="px-6 mb-3">
         <div className="flex items-center gap-2 pl-3.5 pr-1.5 rounded-capsule glass focus-within:ring-2 focus-within:ring-lighthouse-500/40">
