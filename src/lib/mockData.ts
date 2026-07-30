@@ -309,6 +309,11 @@ export const healthClusters: HealthCluster[] = [
   { id: 'h8', lat: 37.2636, lng: 127.0286, city: 'Suwon', symptom: 'Doomscrolling', intensity: 0.35, count: 76 },
   { id: 'h9', lat: 35.1796, lng: 129.0756, city: 'Busan', symptom: 'Screen Fatigue', intensity: 0.68, count: 143 },
   { id: 'h10', lat: 35.8714, lng: 128.6014, city: 'Daegu', symptom: 'FOMO', intensity: 0.48, count: 62 },
+  { id: 'h11', lat: 37.5700, lng: 126.9910, city: 'Jongno-gu, Seoul', symptom: 'Headache', intensity: 0.84, count: 168 },
+  { id: 'h12', lat: 37.5512, lng: 126.9882, city: 'Yongsan-gu, Seoul', symptom: 'Exhaustion', intensity: 0.91, count: 214 },
+  { id: 'h13', lat: 37.5310, lng: 127.0665, city: 'Gwangjin-gu, Seoul', symptom: 'Body Ache', intensity: 0.71, count: 121 },
+  { id: 'h14', lat: 37.6542, lng: 127.0568, city: 'Nowon-gu, Seoul', symptom: 'Low Energy', intensity: 0.63, count: 104 },
+  { id: 'h15', lat: 35.1595, lng: 126.8526, city: 'Gwangju', symptom: 'Exhaustion', intensity: 0.77, count: 139 },
 ];
 
 // Places that help you put the phone down: quiet screen-free rooms, outdoor

@@ -238,11 +238,41 @@ const symptomColors: Record<string, string> = {
   FOMO: '#F5A623',
   'Screen Fatigue': '#4A90E2',
   'Sleep Loss': '#8E7CC3',
+  Headache: '#EF4444',
+  Exhaustion: '#DC2626',
+  'Body Ache': '#F97316',
+  'Low Energy': '#EA580C',
   Other: '#63C5B2',
 };
 
+/** Digital = screen/online strain. Physical = body symptoms (often more serious locally). */
+type HealthDomain = 'digital' | 'physical';
+type DomainFilterKey = 'all' | HealthDomain;
+
+const symptomDomain: Record<string, HealthDomain> = {
+  Doomscrolling: 'digital',
+  FOMO: 'digital',
+  'Screen Fatigue': 'digital',
+  Other: 'digital',
+  'Sleep Loss': 'physical',
+  Headache: 'physical',
+  Exhaustion: 'physical',
+  'Body Ache': 'physical',
+  'Low Energy': 'physical',
+};
+
+function domainOf(symptom: string): HealthDomain {
+  return symptomDomain[symptom] ?? 'digital';
+}
+
+const domainFilters: { key: DomainFilterKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'digital', label: 'Digital' },
+  { key: 'physical', label: 'Physical' },
+];
+
 type AlertLevel = 'normal' | 'slight' | 'watch' | 'warning';
-type MapFilterKey = 'all' | AlertLevel;
+type AlertFilterKey = 'all' | AlertLevel;
 
 const alertLevels: {
   key: AlertLevel;
@@ -335,7 +365,8 @@ function MapView() {
   const [loading, setLoading] = useState(true);
   const [showCheckInSheet, setShowCheckInSheet] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
-  const [filter, setFilter] = useState<MapFilterKey>('all');
+  const [domainFilter, setDomainFilter] = useState<DomainFilterKey>('all');
+  const [alertFilter, setAlertFilter] = useState<AlertFilterKey>('all');
   const [query, setQuery] = useState('');
   const [radiusKm, setRadiusKm] = useState(0);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -393,14 +424,19 @@ function MapView() {
   }, [reports, radiusKm, search]);
 
   const visibleCheckIns = useMemo(
-    () => (filter === 'all' ? checkIns : checkIns.filter((c) => c.alert === filter)),
-    [filter, checkIns],
+    () =>
+      checkIns.filter((c) => {
+        if (domainFilter !== 'all' && domainOf(c.symptom) !== domainFilter) return false;
+        if (alertFilter !== 'all' && c.alert !== alertFilter) return false;
+        return true;
+      }),
+    [domainFilter, alertFilter, checkIns],
   );
 
   const summaryTiles = alertLevels.map((level) => {
     const rows = checkIns.filter((c) => c.alert === level.key);
     return {
-      key: level.key as MapFilterKey,
+      key: level.key as AlertFilterKey,
       label: level.shortLabel,
       value: compactNumber(rows.reduce((sum, c) => sum + c.count, 0)),
       color: level.color,
@@ -502,6 +538,25 @@ function MapView() {
 
   return (
     <div className="mt-4">
+      {/* Digital / Physical — physical can be more urgent in some places */}
+      <div className="px-6 flex gap-2 overflow-x-auto scrollbar-none mb-3">
+        {domainFilters.map((f) => {
+          const active = domainFilter === f.key;
+          return (
+            <motion.button
+              key={f.key}
+              className={`whitespace-nowrap px-4 py-1.5 rounded-capsule text-caption font-bold ${
+                active ? 'hero-glow text-white shadow-soft' : 'glass text-ink-700 dark:text-ink-200'
+              }`}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setDomainFilter(f.key)}
+            >
+              {f.label}
+            </motion.button>
+          );
+        })}
+      </div>
+
       {/* Search + filters */}
       <div className="px-6 mb-3">
         <div className="flex items-center gap-2 pl-3.5 pr-1.5 rounded-capsule glass focus-within:ring-2 focus-within:ring-lighthouse-500/40">
@@ -606,13 +661,13 @@ function MapView() {
 
         <div className="relative mt-3 grid grid-cols-4 gap-1.5">
           {summaryTiles.map((tile) => {
-            const active = filter === tile.key;
+            const active = alertFilter === tile.key;
             return (
               <motion.button
                 key={tile.key}
                 className={`px-1 py-2 rounded-card text-center ${active ? 'glass-tint-warm' : 'glass'}`}
                 whileTap={{ scale: 0.96 }}
-                onClick={() => setFilter(active ? 'all' : tile.key)}
+                onClick={() => setAlertFilter(active ? 'all' : tile.key)}
               >
                 <span
                   className="mx-auto w-7 h-7 rounded-[10px] flex items-center justify-center shadow-soft text-[13px]"
@@ -743,7 +798,7 @@ function ReportForm({
     <div className="space-y-4">
       <div>
         <p className="text-micro uppercase tracking-[0.14em] text-ink-600 dark:text-ink-300 font-bold mb-2">
-          What's going on?
+          What&apos;s going on?
         </p>
         <div className="flex flex-wrap gap-2">
           {Object.keys(symptomColors).map((s) => (
